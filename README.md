@@ -45,7 +45,7 @@ Input: 64 points of pressure sensitivity (10 bit ADC)
 
 #### Software
 
-See [sensor_board/sensor_board.ino]
+See the [sensor_board/sensor_board.ino](sensor_board/sensor_board.ino) Arduino project.
 
 ### Vibrating Actuator Wristband
 
@@ -53,7 +53,7 @@ See [sensor_board/sensor_board.ino]
 
 #### Software
 
-See [actuator_board/actuator_board.ino]
+See the [actuator_board/actuator_board.ino](actuator_board/actuator_board.ino) Arduino project.
 
 ### Serial Interface
 
