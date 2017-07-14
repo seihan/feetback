@@ -39,13 +39,21 @@ The serial interface is usually limited to 115200 baud (bits per second) on fast
 
 #### Hardware
 
+Board: Adafruit Bluefruit nRF52 Feather central / peripheral bluetooth low energy (ble)
+
+Input: 64 points of pressure sensitivity (10 bit ADC)
+
 #### Software
+
+See [sensor_board/sensor_board.ino]
 
 ### Vibrating Actuator Wristband
 
 #### Hardware
 
 #### Software
+
+See [actuator_board/actuator_board.ino]
 
 ### Serial Interface
 
