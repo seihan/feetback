@@ -33,7 +33,7 @@
 static struct message_t msg;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // 'Clear' the message buffer
   msg.length = MAX_VALUES;
