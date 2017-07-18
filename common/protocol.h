@@ -23,16 +23,12 @@ struct message_t {
 int receive_message(message_t *msg) {
   int ok = 0;
 
-start:
-  // find start
+  // find message start
   do {
-    ok = Serial.readBytes(&msg->protocol_header[1], 1);
-  } while (not ok || msg->protocol_header[1] != PROTOCOL_HDR1);
-
-  // verify start
-  ok = Serial.readBytes(&msg->protocol_header[2], 1);
-  if (not ok || msg->protocol_header[2] != PROTOCOL_HDR2)
-    goto start; // restart
+    while (not ok || msg->protocol_header[1] != PROTOCOL_HDR1)
+      ok = Serial.readBytes(&msg->protocol_header[1], 1);
+    ok = Serial.readBytes(&msg->protocol_header[2], 1);
+  } while (not ok || msg->protocol_header[2] != PROTOCOL_HDR2);
 
   // read length
   ok = Serial.readBytes(&msg->length, 1);
