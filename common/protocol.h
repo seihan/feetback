@@ -26,12 +26,12 @@ int receive_message(message_t *msg) {
   // find message start
   do {
     while (not ok || msg->protocol_header[1] != PROTOCOL_HDR1)
-      ok = Serial.readBytes(&msg->protocol_header[1], 1);
-    ok = Serial.readBytes(&msg->protocol_header[2], 1);
+      ok = bleuart.readBytes(&msg->protocol_header[1], 1);
+    ok = bleuart.readBytes(&msg->protocol_header[2], 1);
   } while (not ok || msg->protocol_header[2] != PROTOCOL_HDR2);
 
   // read length
-  ok = Serial.readBytes(&msg->length, 1);
+  ok = bleuart.readBytes(&msg->length, 1);
   if (not ok)
     return 0;
 
@@ -39,6 +39,6 @@ int receive_message(message_t *msg) {
     msg->length = MAX_VALUES;
 
   // read data
-  return Serial.readBytes(reinterpret_cast<unsigned char *>(msg->data), msg->length * sizeof(uint16_t));
+  return bleuart.readBytes(reinterpret_cast<unsigned char *>(msg->data), msg->length * sizeof(uint16_t));
 }
 
