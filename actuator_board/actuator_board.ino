@@ -171,7 +171,7 @@ void loop()
     for(int i = 0; i < 2; i++){
       
       //workaround to get the origin values
-      msg.data[ i ] = msg.data[ i ] / 256;
+      //msg.data[ i ] = msg.data[ i ] / 256;
     
       //pwm motor control  
       analogWrite(outputPins[ i ], min(msg.data[ i ], 255)); //upper limit 255

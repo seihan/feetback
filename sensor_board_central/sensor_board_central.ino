@@ -265,10 +265,6 @@ void loop()
   Serial.print(duration);  
   Serial.println("ms\n");
   
-  if (msg.length > MAX_VALUES) {
-    msg.length = MAX_VALUES;
-  }
-  unsigned length = (msg.length * 2) + 3;
 
   if ( Bluefruit.Central.connected() )
   {
@@ -276,7 +272,7 @@ void loop()
     if ( clientUart.discovered() )
     {
       // write message to serial out
-      clientUart.write(reinterpret_cast<const char *>(&msg), length);
+      send_message(&msg);
     }
   }
   for (uint16_t& val : msg.data) { //reset values to zero
