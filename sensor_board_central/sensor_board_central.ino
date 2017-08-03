@@ -108,7 +108,7 @@ void setup()
 
   // up to 1 peripheral conn and 1 central conn
   Bluefruit.begin(true, true);
-  Bluefruit.setName("Bluefruit52");
+  Bluefruit.setName("LeftSensorSole");
 
   // Configure DIS client
   clientDis.begin();
