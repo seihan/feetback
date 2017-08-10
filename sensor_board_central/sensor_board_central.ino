@@ -19,6 +19,10 @@
 //#include <QuickStats.h>
 #include <bluefruit.h>
 
+BLEClientDis  clientDis;
+//BLEClientUart clientUart;
+BLEClientUart bleuart;
+
 #define MAX_VALUES 2
 #define ROWS 16
 #define COLUMNS 5
@@ -85,9 +89,6 @@ int readMux(int channel){
   return val;
 }
 
-BLEClientDis  clientDis;
-BLEClientUart clientUart;
-
 void setup() 
 {
   pinMode(s0, OUTPUT); //muxing control pins
@@ -103,7 +104,6 @@ void setup()
 
   msg.length = MAX_VALUES;
 
- 
   Serial.begin(115200);
 
   // up to 1 peripheral conn and 1 central conn
@@ -114,8 +114,11 @@ void setup()
   clientDis.begin();
 
   // Init BLE Central Uart Serivce
-  clientUart.begin();
-  clientUart.setRxCallback(uart_rx_callback);
+ // clientUart.begin();
+  bleuart.begin();
+
+ // clientUart.setRxCallback(uart_rx_callback);
+  bleuart.setRxCallback(uart_rx_callback);
 
   // Increase BLink rate to different from PrPh advertising mode 
   Bluefruit.setConnLedInterval(250);
@@ -139,7 +142,8 @@ void scan_callback(ble_gap_evt_adv_report_t* report)
 
     // Connect to device with bleuart service in advertising
     // Use Min & Max Connection Interval default value
-    Bluefruit.Central.connect(report);
+    Serial.println(Bluefruit.Central.connect(report));
+    Serial.println(report);
   }
 }
 
@@ -174,12 +178,14 @@ void connect_callback(uint16_t conn_handle)
 
   Serial.print("Discovering BLE Uart Service ... ");
 
-  if ( clientUart.discover(conn_handle) )
+ // if ( clientUart.discover(conn_handle) )
+  if ( bleuart.discover(conn_handle) )
   {
     Serial.println("Found it");
 
     Serial.println("Enable TXD's notify");
-    clientUart.enableTXD();
+    //clientUart.enableTXD();
+    bleuart.enableTXD();
 
     Serial.println("Ready to receive from peripheral");
   }else
@@ -201,9 +207,11 @@ void uart_rx_callback(void)
 {
   Serial.print("[RX]: ");
   
-  while ( clientUart.available() )
+ // while ( clientUart.available() )
+  while ( bleuart.available() )
   {
-    Serial.print( (char) clientUart.read() );
+//    Serial.print( (char) clientUart.read() );
+    Serial.print( (char) bleuart.read() );
   }
 
   Serial.println();
@@ -250,7 +258,7 @@ void loop()
   msg.data[ 1 ] = map(msg.data[ 1 ], 0, 400, 0, 255);
   
   //debug print
-  for(int i = 0; i < 16; i++){
+/*  for(int i = 0; i < 16; i++){
     Serial.print(values[i][0]);
     Serial.print("\t");
     Serial.println(rowmax[i]);
@@ -263,13 +271,14 @@ void loop()
   Serial.println("\n----------\n");
   Serial.print("duration = ");
   Serial.print(duration);  
-  Serial.println("ms\n");
+  Serial.println("ms\n");*/
   
 
   if ( Bluefruit.Central.connected() )
   {
     // Not discovered yet
-    if ( clientUart.discovered() )
+ //   if ( clientUart.discovered() )
+    if ( bleuart.discovered() )
     {
       // write message to serial out
       send_message(&msg);
