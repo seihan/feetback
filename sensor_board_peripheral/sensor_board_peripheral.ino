@@ -1,9 +1,21 @@
 #include <bluefruit.h>
 
+// BLE Service
+BLEDis  bledis;
+BLEUart bleuart;
+BLEBas  blebas;
+
+#define MAX_VALUES 80
+#define ROWS 16
+#define COLUMNS 5
+
+#include "protocol.h"
+
+static struct message_t msg;
 int duration = 0;
 
-// 2d array to store values
-int values[16][5] = {}; //[rows][columns]
+// array to store values
+uint16_t values[ ROWS ][ COLUMNS ] = {}; //[rows][columns]
 
 //mux control pins
 int s0 = 15;
@@ -15,7 +27,7 @@ int s3 = 31;
 int SIG_pin = A3;
 
 
-int readMux(int channel){
+uint16_t readMux(int channel){
   int controlPin[] = {s0, s1, s2, s3};
 
   int muxChannel[16][4]={
@@ -43,79 +55,14 @@ int readMux(int channel){
   }
 
   //read the value at the SIG pin
-  int val = analogRead(SIG_pin);
+  uint16_t val = analogRead(SIG_pin);
 
   //return the value
   return val;
 }
 
-// BLE Service
-BLEDis  bledis;
-BLEUart bleuart;
-BLEBas  blebas;
-
 // Software Timer for blinking RED LED
 SoftwareTimer blinkTimer;
-
-void setup()
-{
-  pinMode(s0, OUTPUT); 
-  pinMode(s1, OUTPUT); 
-  pinMode(s2, OUTPUT); 
-  pinMode(s3, OUTPUT);
-  pinMode(SIG_pin, INPUT); 
-
-  digitalWrite(s0, LOW);
-  digitalWrite(s1, LOW);
-  digitalWrite(s2, LOW);
-  digitalWrite(s3, LOW);
-  
-  //initialize array with zeros
-  for(int i = 0; i < 16; i++){
-    for(int j = 0; j < 5; j++){
-      values[i][j] = 0;
-      }
-   }
-
-  Serial.begin(115200);
-  Serial.println("Bluefruit52 BLEUART Example");
-
-  // Initialize blinkTimer for 1000 ms and start it
-  blinkTimer.begin(1000, blink_timer_callback);
-  //blinkTimer.start();
-
-  // Setup the BLE LED to be enabled on CONNECT
-  // Note: This is actually the default behaviour, but provided
-  // here in case you want to control this LED manually via PIN 19
-  Bluefruit.autoConnLed(true);
-
-  Bluefruit.begin();
-  Bluefruit.setName("SensorSoleRight");
-  Bluefruit.setConnectCallback(connect_callback);
-  Bluefruit.setDisconnectCallback(disconnect_callback);
-
-  // Configure and Start Device Information Service
-  bledis.setManufacturer("Adafruit Industries");
-  bledis.setModel("Bluefruit Feather52");
-  bledis.begin();
-
-  // Configure and Start BLE Uart Service
-  bleuart.begin();
-
-  // Start BLE Battery Service
-  blebas.begin();
-  blebas.write(100);
-
-  // Set up Advertising Packet
-  setupAdv();
-
-  // Start Advertising
-  Bluefruit.Advertising.start();
-
-  Serial.println("Please use Adafruit's Bluefruit LE app to connect in UART mode");
-  Serial.println("Once connected, enter character(s) that you wish to send");
-}
-
 void setupAdv(void)
 {
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
@@ -195,73 +142,95 @@ void rtos_idle_callback(void)
   waitForEvent();
 }
 
-void loop()
+void setup()
 {
-  //read values
-  duration = millis();
-  for(int i = 0; i < 5; i++){
-    //digitalWrite(columnPins[i], HIGH);
-    for(int j = 0; j < 16; j++){
-      values[ j ][ i ] = readMux(j);
-      delay(1);
-    }
-    //digitalWrite(columnPins[i], LOW);
-  }
-  duration = millis() - duration;
+  pinMode(s0, OUTPUT); 
+  pinMode(s1, OUTPUT); 
+  pinMode(s2, OUTPUT); 
+  pinMode(s3, OUTPUT);
+  pinMode(SIG_pin, INPUT); 
 
-  String frontback = String(String(values[0][0], DEC) + String(",") + String(values[15][0]) + String("|"));
-// Define 
-//String str = "This is my string"; 
-
-// Length (with one extra character for the null terminator)
-int frontback_len = frontback.length() + 1; 
-
-// Prepare the character array (the buffer) 
-char char_array[frontback_len];
-
-// Copy it over 
-frontback.toCharArray(char_array, frontback_len);
-//Serial.println(char_array);
-  bleuart.write(char_array, sizeof(char_array));
-  delay(300);
-  //write values via serial to processing
-      /*Serial.print (values[ i ][ j ], DEC );
-      if(j == 4){
-        Serial.print(";");
-      }
-      else{
-        Serial.print(",");
-      }
-    }
-    if(i == 15){
-      Serial.print("|");
-    }
-  }*/
-
-  //reset values to zero
+  digitalWrite(s0, LOW);
+  digitalWrite(s1, LOW);
+  digitalWrite(s2, LOW);
+  digitalWrite(s3, LOW);
+  
+  //initialize array with zeros
   for(int i = 0; i < 16; i++){
     for(int j = 0; j < 5; j++){
       values[i][j] = 0;
       }
    }
-  // Forward data from HW Serial to BLEUART
-/*  while (Serial.available())
-  {
-    // Delay to wait for enough input, since we have a limited transmission buffer
-    delay(2);
 
-    uint8_t buf[64];
-    int count = Serial.readBytes(buf, sizeof(buf));
-    bleuart.write( buf, count );
+  Serial.begin(115200);
+  Serial.println("Bluefruit52 BLEUART Example");
+
+  // Initialize blinkTimer for 1000 ms and start it
+  blinkTimer.begin(1000, blink_timer_callback);
+  //blinkTimer.start();
+
+  // Setup the BLE LED to be enabled on CONNECT
+  // Note: This is actually the default behaviour, but provided
+  // here in case you want to control this LED manually via PIN 19
+  Bluefruit.autoConnLed(true);
+
+  Bluefruit.begin();
+  Bluefruit.setName("SensorSoleRight");
+  Bluefruit.setConnectCallback(connect_callback);
+  Bluefruit.setDisconnectCallback(disconnect_callback);
+
+  // Configure and Start Device Information Service
+  bledis.setManufacturer("Adafruit Industries");
+  bledis.setModel("Bluefruit Feather52");
+  bledis.begin();
+
+  // Configure and Start BLE Uart Service
+  bleuart.begin();
+
+  // Start BLE Battery Service
+  blebas.begin();
+  blebas.write(100);
+
+  // Set up Advertising Packet
+  setupAdv();
+
+  // Start Advertising
+  Bluefruit.Advertising.start();
+
+  Serial.println("Please use Adafruit's Bluefruit LE app to connect in UART mode");
+  Serial.println("Once connected, enter character(s) that you wish to send");
+}
+
+
+void loop()
+{
+//read values
+  duration = millis();
+  for (int i = 0; i < COLUMNS; i++) {
+    //digitalWrite(columnPins[i], HIGH);
+    for (int j = 0; j < ROWS; j++) {
+      values[ j ][ i ] = readMux(j);
+      //  delay(1);
+    }
+    //digitalWrite(columnPins[i], LOW);
   }
+  
+  //print values and prepare the msg
+  for (int h = 0; h < MAX_VALUES; h++){
+    for (int i = 0; i < ROWS; i++) {
+      for (int j = 0; j < COLUMNS; j++) {
+        msg.data[ h ] = values[ i ][ j ];
+        Serial.print(msg.data[ h ]);
+        Serial.print("\t");
+      }
+    Serial.println();
+    }
+    Serial.println("--------------------------------\n");
+  }
+  duration = millis() - duration;
 
-  // Forward from BLEUART to HW Serial
-  while ( bleuart.available() )
-  {
-    uint8_t ch;
-    ch = (uint8_t) bleuart.read();
-    Serial.write(ch);
-  }*/
+  // transmit message via bleuart
+  send_message(&msg);
 
   // Request CPU to enter low-power mode until an event/interrupt occurs
   waitForEvent();
