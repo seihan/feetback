@@ -19,6 +19,8 @@ struct message_t {
 };
 
 
+void sendAll(const char* str, uint16_t len);
+
 /* Send a message out through the UART.
  */
 void send_message(message_t *msg) {
@@ -27,7 +29,7 @@ void send_message(message_t *msg) {
   }
 
   unsigned len = (msg->length * sizeof(uint16_t)) + 3;
-  bleuart.write(reinterpret_cast<unsigned char *>(msg->protocol_header), len);
+  sendAll(reinterpret_cast<unsigned char *>(msg->protocol_header), len);
 }
 
 /* Read a message into a buffer

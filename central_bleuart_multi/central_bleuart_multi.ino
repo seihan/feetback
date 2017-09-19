@@ -51,6 +51,7 @@
  */
 
 #include <bluefruit.h>
+#include "protocol.h"
 
 // Struct containing peripheral info
 typedef struct
@@ -240,10 +241,10 @@ void bleuart_rx_callback(BLEClientUart& uart_svc)
 /**
  * Helper function to send a string to all connected peripherals
  */
-void sendAll(const char* str)
+void sendAll(const char* str, uint16_t len)
 {
-  Serial.print("[Send to All]: ");
-  Serial.println(str);
+  Serial.print("[Send to All] Bytes: ");
+  Serial.println(len);
   
   for(uint8_t id=0; id < BLE_CENTRAL_MAX_CONN; id++)
   {
@@ -251,7 +252,7 @@ void sendAll(const char* str)
 
     if ( peer->bleuart.discovered() )
     {
-      peer->bleuart.print(str);
+      peer->bleuart.write(str, len);
     }
   }
 }
@@ -267,7 +268,7 @@ void loop()
     // Read from HW Serial (normally USB Serial) and send to all peripherals
     if ( Serial.readBytes(buf, sizeof(buf)-1) )
     {
-      sendAll(buf);
+      sendAll(buf, sizeof(buf));
     }
   }
 }
