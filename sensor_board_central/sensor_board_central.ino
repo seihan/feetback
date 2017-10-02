@@ -1,30 +1,31 @@
 /*********************************************************************
-  This is an example for our nRF52 based Bluefruit LE modules
+ This is an example for our nRF52 based Bluefruit LE modules
 
-  Pick one up today in the adafruit shop!
+ Pick one up today in the adafruit shop!
 
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
+ Adafruit invests time and resources providing this open source code,
+ please support Adafruit and open-source hardware by purchasing
+ products from Adafruit!
 
-  MIT license, check LICENSE for more information
-  All text above, and the splash screen below must be included in
-  any redistribution
+ MIT license, check LICENSE for more information
+ All text above, and the splash screen below must be included in
+ any redistribution
 *********************************************************************/
 
 /*
-   This sketch demonstrate the central API(). A additional bluefruit
-   that has bleuart as peripheral is required for the demo.
-*/
+ * This sketch demonstrate the central API(). A additional bluefruit
+ * that has bleuart as peripheral is required for the demo.
+ */
 
+#define MAX_VALUES 80
+ 
 #include <bluefruit.h>
 
 BLEClientDis  clientDis;
-BLEClientUart bleuart;
+BLEClientUart clientUart;
 
-#define MAX_VALUES 2
 #define ROWS 16
-#define COLUMNS 5
+#define COLUMNS 5 
 
 #include "protocol.h"
 
@@ -54,6 +55,48 @@ int s3 = 31;
 //mux in "SIG" pin
 int SIG_pin = A3;
 
+void setup()
+{
+  Serial.begin(115200);
+
+  Serial.println("Bluefruit52 Central BLEUART Example");
+  Serial.println("-----------------------------------\n");
+  
+  // Enable both peripheral and central
+  Bluefruit.begin(true, true);
+  Bluefruit.setName("LeftSensorSole");
+
+  // Configure DIS client
+  clientDis.begin();
+
+  // Init BLE Central Uart Serivce
+  clientUart.begin();
+  clientUart.setRxCallback(bleuart_rx_callback);
+
+  // Increase Blink rate to different from PrPh advertising mode
+  Bluefruit.setConnLedInterval(250);
+
+  // Callbacks for Central
+  Bluefruit.Central.setConnectCallback(connect_callback);
+  Bluefruit.Central.setDisconnectCallback(disconnect_callback);
+
+  /* Start Central Scanning
+   * - Enable auto scan if disconnected
+   * - Interval = 100 ms, window = 80 ms
+   * - Don't use active scan
+   * - Start(timeout) with timeout = 0 will scan forever (until connected)
+   */
+  Bluefruit.Scanner.setRxCallback(scan_callback);
+  Bluefruit.Scanner.restartOnDisconnect(true);
+  Bluefruit.Scanner.setInterval(160, 80); // in unit of 0.625 ms
+  Bluefruit.Scanner.useActiveScan(false);
+  Bluefruit.Scanner.start(0);                   // // 0 = Don't stop scanning after n seconds
+}
+
+/**
+ * 16 channel multiplexer control function
+ * @param channel
+ */
 uint16_t readMux(int channel) {
   int controlPin[] = {s0, s1, s2, s3};
 
@@ -88,23 +131,29 @@ uint16_t readMux(int channel) {
   return val;
 }
 
-
-/*
- * Callback invoked when scanner picks up an advertising packet
+void sendAll(unsigned char* str, uint16_t len){
+  clientUart.write(str, len);
+}
+/**
+ * Callback invoked when scanner pick up an advertising data
  * @param report Structural advertising data
  */
 void scan_callback(ble_gap_evt_adv_report_t* report)
 {
-  // Check if advertising data contains the BleUart service UUID
-  if ( Bluefruit.Scanner.checkReportForUuid(report, BLEUART_UUID_SERVICE) )
+  // Check if advertising contain BleUart service
+  if ( Bluefruit.Scanner.checkReportForService(report, clientUart) )
   {
     Serial.print("BLE UART service detected. Connecting ... ");
 
-    // Connect to the device with bleuart service in advertising packet
+    // Connect to device with bleuart service in advertising
     Bluefruit.Central.connect(report);
   }
 }
 
+/**
+ * Callback invoked when an connection is established
+ * @param conn_handle
+ */
 void connect_callback(uint16_t conn_handle)
 {
   Serial.println("Connected");
@@ -113,8 +162,8 @@ void connect_callback(uint16_t conn_handle)
   if ( clientDis.discover(conn_handle) )
   {
     Serial.println("Found it");
-    char buffer[32 + 1];
-
+    char buffer[32+1];
+    
     // read and print out Manufacturer
     memset(buffer, 0, sizeof(buffer));
     if ( clientDis.getManufacturer(buffer, sizeof(buffer)) )
@@ -131,177 +180,77 @@ void connect_callback(uint16_t conn_handle)
       Serial.println(buffer);
     }
 
-    // read and print out Device Serial Number
-    memset(buffer, 0, sizeof(buffer));
-    if ( clientDis.getSerial(buffer, sizeof(buffer)) )
-    {
-      Serial.print("Serial: ");
-      Serial.println(buffer);
-    }
     Serial.println();
-  }
+  }  
 
   Serial.print("Discovering BLE Uart Service ... ");
 
-  if ( bleuart.discover(conn_handle) )
+  if ( clientUart.discover(conn_handle) )
   {
     Serial.println("Found it");
 
     Serial.println("Enable TXD's notify");
-    bleuart.enableTXD();
+    clientUart.enableTXD();
 
     Serial.println("Ready to receive from peripheral");
-  } else
+  }else
   {
     Serial.println("Found NONE");
-  }
+    
+    // disconect since we couldn't find bleuart service
+    Bluefruit.Central.disconnect(conn_handle);
+  }  
 }
 
+/**
+ * Callback invoked when a connection is dropped
+ * @param conn_handle
+ * @param reason
+ */
 void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 {
   (void) conn_handle;
   (void) reason;
-
+  
   Serial.println("Disconnected");
-  Serial.println("Bluefruit will auto start scanning (default)");
 }
 
-void uart_rx_callback(void)
+/**
+ * Callback invoked when uart received data
+ * @param uart_svc Reference object to the service where the data 
+ * arrived. In this example it is clientUart
+ */
+void bleuart_rx_callback(BLEClientUart& uart_svc)
 {
   Serial.print("[RX]: ");
-
-  // while ( clientUart.available() )
-  while ( bleuart.available() )
+  1
+  while ( uart_svc.available() )
   {
-    //    Serial.print( (char) clientUart.read() );
-    Serial.print( (char) bleuart.read() );
+    Serial.print( (char) uart_svc.read() );
   }
 
   Serial.println();
-}
-
-void setup()
-{
-  pinMode(s0, OUTPUT); //muxing control pins
-  pinMode(s1, OUTPUT);
-  pinMode(s2, OUTPUT);
-  pinMode(s3, OUTPUT);
-  pinMode(SIG_pin, INPUT);
-
-  digitalWrite(s0, LOW);
-  digitalWrite(s1, LOW);
-  digitalWrite(s2, LOW);
-  digitalWrite(s3, LOW);
-
-  msg.length = MAX_VALUES;
-
-  Serial.begin(115200);
-
-  // up to 1 peripheral conn and 1 central conn
-  Bluefruit.begin(true, true);
-  Bluefruit.setName("LeftSensorSole");
-
-  // Configure DIS client
-  clientDis.begin();
-
-  // Init BLE Central Uart Serivce
-  bleuart.begin();
-
-  bleuart.setRxCallback(uart_rx_callback);
-
-  // Increase BLink rate to different from PrPh advertising mode
-  Bluefruit.setConnLedInterval(250);
-
-  // Callbacks for Central
-  Bluefruit.Central.setConnectCallback(connect_callback);
-  Bluefruit.Central.setDisconnectCallback(disconnect_callback);
-
-  // Start Central Scan
-  Bluefruit.Central.setScanCallback(scan_callback);
-  Bluefruit.Central.startScanning();
 }
 
 void loop()
 {
-  //read values
-  duration = millis();
-  for (int i = 0; i < COLUMNS; i++) {
-    //digitalWrite(columnPins[i], HIGH);
-    for (int j = 0; j < ROWS; j++) {
-      values[ j ][ i ] = readMux(j);
-      //  delay(1);
-    }
-    //digitalWrite(columnPins[i], LOW);
-  }
-  
-  //print values
-  for (int i = 0; i < ROWS; i++) {
-    //digitalWrite(columnPins[i], HIGH);
-    for (int j = 0; j < COLUMNS; j++) {
-      Serial.print(values[ i ][ j ]);
-      Serial.print("\t");
-    }
-  Serial.println();
-  }
-  Serial.println("--------------------------------\n");
-  
-  //compute mean and max values
-  for (int i = 0; i < ROWS; i++) {
-    for (int j = 0; j < COLUMNS; j++) {
-      //rows[ i ] += values[ i ][ j ]; //sum all columns in one row
-      if (maxi < values[ i ][ j ]) { // get maximum
-        maxi = values[ i ][ j ];
-      }
-    }
-    //rows[ i ] = rows[ i ] / COLUMNS //compute mean
-    rowmax[ i ] = maxi; //maximum value in row
-    maxi = 0;
-    if (i < 7) { //maximum value between row 1 to 7 -> FRONT
-      if (msg.data[ 0 ] < rowmax[ i ]) {
-        msg.data[ 0 ] = rowmax[ i ];
-      }
-    }
-    if (i > 8) { //maximum value between row 8 to 16 -> REAR
-      if (msg.data[ 1 ] < rowmax[ i ]) {
-        msg.data[ 1 ] = rowmax[ i ];
-      }
-    }
-  }
-  duration = millis() - duration;
-
-  //map values for pwm
-  msg.data[ 0 ] = map(msg.data[ 0 ], 0, 400, 0, 255);
-  msg.data[ 1 ] = map(msg.data[ 1 ], 0, 400, 0, 255);
-
-  //debug print
-  /*  for(int i = 0; i < 16; i++){
-      Serial.print(values[i][0]);
-      Serial.print("\t");
-      Serial.println(rowmax[i]);
-    }
-    Serial.println("----------\n");
-    for(int i = 0; i < 2; i++){
-      Serial.print(msg.data[ i ]);
-      Serial.print("\t");
-    }
-    Serial.println("\n----------\n");
-    Serial.print("duration = ");
-    Serial.print(duration);
-    Serial.println("ms\n");*/
-
-
   if ( Bluefruit.Central.connected() )
   {
-    //Bluefruit.Central.setScanCallback(scan_callback);
-    //Bluefruit.Central.startScanning();
     // Not discovered yet
-    if ( bleuart.discovered() )
+    if ( clientUart.discovered() )
     {
-      // transmit message via bleuart
-      send_message(&msg);
+      // Discovered means in working state
+      // Get Serial input and send to Peripheral
+      if ( Serial.available() )
+      {
+        delay(2); // delay a bit for all characters to arrive
+        
+        char str[20+1] = { 0 };
+        Serial.readBytes(str, 20);
+        
+        clientUart.print( str );
+      }
     }
   }
-  for (uint16_t& val : msg.data) { //reset values to zero
-    val = 0;
-  }
 }
+
