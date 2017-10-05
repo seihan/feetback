@@ -10,6 +10,11 @@ static int color_max = 400;
 
 Serial usbPort;  // Create object from Serial class
 
+// convert unsigned byte to int
+int unsigned(byte val) {
+  return int(val) & 0xff;
+}
+
 int receive_message() {
   byte [] res = null;
 
@@ -42,7 +47,7 @@ int receive_message() {
     
   len = res.length / 2;
   for (int idx = 0; idx < len; idx++) {
-    data[idx] = res[(2 * idx)] + 256 * res[(2 * idx) + 1];
+    data[idx] = unsigned(res[(2 * idx)]) + 256 * unsigned(res[(2 * idx) + 1]);
   }
 
   for (int val : data) {
