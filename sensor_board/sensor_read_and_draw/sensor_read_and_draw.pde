@@ -1,12 +1,16 @@
 import processing.serial.*;
 
 static final String PORT = "/dev/ttyUSB0"; // Serial port
-static final int MAX_VALUES = 80;
-static final char PROTOCOL_HDR1 = 'M'; // Magic
-static final char PROTOCOL_HDR2 = 'V'; // Value
-static int [] data;
+static final char   PROTOCOL_HDR1 = 'M'; // Magic
+static final char   PROTOCOL_HDR2 = 'V'; // Value
+static final int    COLS = 5; // Columns in the grid
+static final int    ROWS = 16; // Rows in the grid
+static final int    COLOR_MAX = 400; // Maximum color value (largest expected data point)
+static final int    WIDTH = 200; // Width of the drawing area
+static final int    HEIGHT = 640; // Height of the drawing area
 
-static final int COLOR_MAX = 4095;
+int [][] data; // Received data values
+Cell[][] grid; // 2D Array of objects
 
 Serial usbPort;  // Create object from Serial class
 
@@ -15,6 +19,7 @@ int unsigned(byte val) {
   return int(val) & 0xff;
 }
 
+// Receive a message from serial port
 int receive_message() {
   byte [] res = null;
 
@@ -37,8 +42,8 @@ int receive_message() {
   print(len);
   println(" values");
 
-  if (len > MAX_VALUES)
-    len = MAX_VALUES;
+  if (len > (ROWS * COLS))
+    len = ROWS * COLS;
 
   // read data
   res = usbPort.readBytes(len * 2);
@@ -47,7 +52,8 @@ int receive_message() {
 
   len = res.length / 2;
   for (int idx = 0; idx < len; idx++) {
-    data[idx] = unsigned(res[(2 * idx)]) + 256 * unsigned(res[(2 * idx) + 1]);
+    // sort into right grid point row by row
+    data[idx % COLS][idx / COLS] = unsigned(res[(2 * idx)]) + 256 * unsigned(res[(2 * idx) + 1]);
   }
 
   for (int val : data) {
@@ -59,59 +65,61 @@ int receive_message() {
   return len;
 }
 
-// 2D Array of objects
-Cell[][] grid;
-
-// Number of columns and rows in the grid
-int cols = 5;
-int rows = 16;
-
 int nearest_neighbor(int x, int y) {
-  int idx = (rows * (x / (width / cols))) + (y / (height / rows));
-  return data[idx];
+  return data[x * COLS / WIDTH][y * ROWS / HEIGHT];
 }
 
 int bilinear(int x, int y) {
-  int xfull = width / cols;
-  int yfull = height / rows;
-  int max_idx = cols * rows;
-
-  int idx_lu = (rows * (x / xfull)) + (y / yfull);
-  int idx_ld = (((idx_lu + 1) < max_idx) && ((idx_lu + 1) % rows > 0)) ? idx_lu + 1 : idx_lu;
-  int idx_ru = (idx_lu + rows) < max_idx ? idx_lu + rows : idx_lu;
-  int idx_rd = (((idx_ru + 1) < max_idx) && ((idx_ru + 1) % rows > 0)) ? idx_ru + 1 : idx_ru;
+  int xfull = WIDTH / COLS;
+  int yfull = HEIGHT / ROWS;
 
   int xdiff = (x % xfull);
   int ydiff = (y % yfull);
 
-  int data_left = ((yfull - ydiff) * data[idx_lu] + (ydiff * data[idx_ld])) / yfull;
-  int data_right = ((yfull - ydiff) * data[idx_ru] + (ydiff * data[idx_rd])) / yfull;
-  int data_mid = ((xfull - xdiff) * data_left + (xdiff * data_right)) / xfull;
+  int x_idx = x / xfull;
+  int y_idx = y / yfull;
+  int x_idx_plus_1 = x_idx < (COLS - 1) ? x_idx + 1 : x_idx;
+  int y_idx_plus_1 = y_idx < (ROWS - 1) ? y_idx + 1 : y_idx;
+
+  int data_lu = data[x_idx][y_idx];
+  int data_ru = data[x_idx_plus_1][y_idx];
+  int data_ld = data[x_idx][y_idx_plus_1];
+  int data_rd = data[x_idx_plus_1][y_idx_plus_1];
+
+  int data_left  = ((yfull - ydiff) * data_lu   + (ydiff * data_ld))    / yfull;
+  int data_right = ((yfull - ydiff) * data_ru   + (ydiff * data_rd))    / yfull;
+  int data_mid   = ((xfull - xdiff) * data_left + (xdiff * data_right)) / xfull;
 
   return data_mid;
 }
 
 void setup() {
-  blendMode(BLEND);
-
-  data = new int[MAX_VALUES];
+    // Set up Serial connection
   usbPort = new Serial(this, PORT, 115200);
   // FIXME: wait a little here for reliable connection
   do {
     delay(2000);
   } while (usbPort.readBytes(1) == null);
 
-  size(400,640);
+  // Let's draw the data twice for now...
+  size(2 * WIDTH, HEIGHT);
 
-  grid = new Cell[cols][rows];
-  for (int i = 0; i < cols; i++) {
-    for (int j = 0; j < rows; j++) {
+  // Initialize the grid of uniform color cells
+  int cell_width = WIDTH / COLS;
+  int cell_height = HEIGHT / ROWS;
+  grid = new Cell[COLS][ROWS];
+  for (int i = 0; i < COLS; i++) {
+    for (int j = 0; j < ROWS; j++) {
       // Initialize each object
-      grid[i][j] = new Cell(i*40,j*40,40,40,i+j);
+      grid[i][j] = new Cell(i*cell_width,j*cell_height,cell_width,cell_height);
     }
   }
 
-  colorMode(HSB, 360, 100, 100);
+  // Initialize the data point array
+  data = new int[COLS][ROWS];
+
+  // Configure color mode so COLOR_MAX corresponds to 220 degree Hue
+  colorMode(HSB, (360 * COLOR_MAX) / 220, 100, 100);
 }
 
 void draw() {
@@ -120,34 +128,27 @@ void draw() {
 
   receive_message();
 
-  // The counter variables i and j are also the column and row numbers and
-  // are used as arguments to the constructor for each object in the grid.
-  for (int i = 0; i < cols; i++) {
-    for (int j = 0; j < rows; j++) {
-      // Oscillate and display each object
-//      grid[i][j].oscillate();
+  // Draw each cell
+  for (int i = 0; i < COLS; i++) {
+    for (int j = 0; j < ROWS; j++) {
       grid[i][j].display();
     }
   }
 
-  int width = 200;
-  int height = 640;
+  // Draw finer grid with interpolation
   int colr = 0;
-
-  for (int x = 0; x < width; x += 10) {
-    for (int y = 0; y < height; y += 4) {
-//      colr = nearest_neighbor(x, y);
+  for (int x = 0; x < WIDTH; x += 10) {
+    for (int y = 0; y < HEIGHT; y += 4) {
       colr = bilinear(x, y);
-//      stroke(colr, colr < (COLOR_MAX - colr) ? 2 * colr : 2 * (COLOR_MAX - colr), COLOR_MAX - colr);
-//      fill(colr, colr < (COLOR_MAX - colr) ? 2 * colr : 2 * (COLOR_MAX - colr), COLOR_MAX - colr);
-
       if (colr > COLOR_MAX)
         colr = COLOR_MAX;
 
-      // rotate Hue between 0 and 220 degrees
-      int angle = (220 * (COLOR_MAX - colr)) / COLOR_MAX;
-      stroke(angle, 100, 100);
-      fill(angle, 100, 100);
+      // Invert so max value is Hue 0 (red) and 0 is blue
+      colr = COLOR_MAX - colr;
+
+      // draw the thing
+      stroke(colr, 100, 100);
+      fill(colr, 100, 100);
       rect(200 + x, y, 10, 4);
     }
   }
@@ -157,44 +158,28 @@ void draw() {
 class Cell {
   // A cell object knows about its location in the grid
   // as well as its size with the variables x,y,w,h
-  float x,y;   // x,y location
-  float w,h;   // width and height
-  float angle; // angle for oscillating brightness
+  int x,y;   // x,y location
+  int w,h;   // width and height
 
   // Cell Constructor
-  Cell(float tempX, float tempY, float tempW, float tempH, float tempAngle) {
+  Cell(int tempX, int tempY, int tempW, int tempH) {
     x = tempX;
     y = tempY;
     w = tempW;
     h = tempH;
-    angle = tempAngle;
-  }
-
-  // Oscillation means increase angle
-  void oscillate() {
-    angle += 0.02;
   }
 
   void display() {
-//    stroke(255);
-    // Color calculated using sine wave
-//    fill(127+127*sin(angle));
+    int colr = nearest_neighbor(x, y);
+    if (colr > COLOR_MAX)
+      colr = COLOR_MAX;
 
-    int idx = floor((rows * (x / 40)) + ((y / 40)));
-    int colr = data[idx];
-//    stroke(colr, 0, COLOR_MAX - colr);
-//    fill(colr, 0, COLOR_MAX - colr);
-//    stroke(colr, colr < (COLOR_MAX - colr) ? 2 * colr : 2 * (COLOR_MAX - colr), COLOR_MAX - colr);
-//    fill(colr, colr < (COLOR_MAX - colr) ? 2 * colr : 2 * (COLOR_MAX - colr), COLOR_MAX - colr);
+    // Invert color so hue matches 0 (red) for max value
+    colr = MAX_COLOR - colr;
 
-      if (colr > COLOR_MAX)
-        colr = COLOR_MAX;
-
-      // rotate Hue between 0 and 220 degrees
-      int angle = (220 * (COLOR_MAX - colr)) / COLOR_MAX;
-      stroke(angle, 100, 100);
-      fill(angle, 100, 100);
-
+    // draw the thing
+    stroke(colr, 100, 100);
+    fill(colr, 100, 100);
     rect(x,y,w,h);
   }
 }
