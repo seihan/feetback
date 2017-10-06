@@ -1,12 +1,12 @@
 import processing.serial.*;
 
-static String PORT = "/dev/ttyUSB0"; // Serial port
+static String PORT = "/dev/ttyUSB3"; // Serial port
 static int MAX_VALUES = 80;
 static char PROTOCOL_HDR1 = 'M'; // Magic
 static char PROTOCOL_HDR2 = 'V'; // Value
 static int [] data;
 
-static int color_max = 400;
+static int color_max = 4095;
 
 Serial usbPort;  // Create object from Serial class
 
