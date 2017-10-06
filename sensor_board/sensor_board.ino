@@ -7,41 +7,41 @@
 static struct message_t msg;
 int duration = 0;
 
-// column pins to set column high
-const int columnPins[ COLUMNS ] = {
-  27, 30, 16, 6, 20
+// input pins
+const int inputPins[ COLUMNS ] = {
+  A0, A1, A2, A3, A4
 };
 
-//mux control pins
+// mux control pins
 int s0 = 15;
 int s1 = 7;
 int s2 = 11;
 int s3 = 31;
 
-//mux in "SIG" pin
-int SIG_pin = A3;
-
 void setup(){
+  // ADC config
+  analogReference(AR_VDD4);
+  analogReadResolution(12);
+  // PIN config
   pinMode(s0, OUTPUT); 
   pinMode(s1, OUTPUT); 
   pinMode(s2, OUTPUT); 
   pinMode(s3, OUTPUT);
-  pinMode(SIG_pin, INPUT); 
-
   digitalWrite(s0, LOW);
   digitalWrite(s1, LOW);
   digitalWrite(s2, LOW);
   digitalWrite(s3, LOW);
 
+  // message length
   msg.length = MAX_VALUES;
   
   Serial.begin(115200);
 }
 
 /**
- * analogRead through a 16 channel muxer
+ * digitalWrite through a 16 channel muxer
  */
-uint16_t readMux(int channel) {
+void writeMux(int channel) {
   int controlPin[] = {s0, s1, s2, s3};
 
   int muxChannel[ ROWS ][ 4 ] = {
@@ -67,12 +67,6 @@ uint16_t readMux(int channel) {
   for (int i = 0; i < 4; i ++) {
     digitalWrite(controlPin[i], muxChannel[channel][i]);
   }
-
-  //read the value at the SIG pin
-  uint16_t val = analogRead(SIG_pin);
-
-  //return the value
-  return val;
 }
 
 void sendAll(unsigned char* str, uint16_t len){
@@ -80,28 +74,25 @@ void sendAll(unsigned char* str, uint16_t len){
 }
 
 void loop(){
-  //read values
   duration = millis();
   int k = 0;
-  for(int i = 0; i < COLUMNS; i++){
-    //digitalWrite(columnPins[i], HIGH);
-    for(int j = 0; j < ROWS; j++){
-      msg.data[ k ] = readMux(j); //values[ j ][ i ];
-      // msg.data[ k ] = k; //values[ j ][ i ];
+  for(int i = 0; i < ROWS; i++){
+    writeMux( i ); //set column HIGH
+    for(int j = 0; j < COLUMNS; j++){
+      msg.data[ k ] = analogRead( inputPins[ j ] ); //read values
       //print values
       //Serial.print(msg.data[ k ]);
       //Serial.print(" ");
       k++;
     }
     //Serial.println();
-    //digitalWrite(columnPins[i], LOW);
   }
   //Serial.println("-------------------------------------------------");
 
-  //transmit values
-  send_message(&msg);
+  send_message(&msg);//transmit values
+  
   for (uint16_t& val : msg.data) { //reset values to zero
     val = 0;
   }
-//  delay(200);
+  //delay(200);
 }
