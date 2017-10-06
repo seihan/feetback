@@ -1,12 +1,12 @@
 import processing.serial.*;
 
-static String PORT = "/dev/ttyUSB3"; // Serial port
-static int MAX_VALUES = 80;
-static char PROTOCOL_HDR1 = 'M'; // Magic
-static char PROTOCOL_HDR2 = 'V'; // Value
+static final String PORT = "/dev/ttyUSB0"; // Serial port
+static final int MAX_VALUES = 80;
+static final char PROTOCOL_HDR1 = 'M'; // Magic
+static final char PROTOCOL_HDR2 = 'V'; // Value
 static int [] data;
 
-static int color_max = 4095;
+static final int COLOR_MAX = 4095;
 
 Serial usbPort;  // Create object from Serial class
 
@@ -44,7 +44,7 @@ int receive_message() {
   res = usbPort.readBytes(len * 2);
   if (res == null)
     return 0;
-    
+
   len = res.length / 2;
   for (int idx = 0; idx < len; idx++) {
     data[idx] = unsigned(res[(2 * idx)]) + 256 * unsigned(res[(2 * idx) + 1]);
@@ -110,7 +110,7 @@ void setup() {
       grid[i][j] = new Cell(i*40,j*40,40,40,i+j);
     }
   }
-  
+
   colorMode(HSB, 360, 100, 100);
 }
 
@@ -120,8 +120,8 @@ void draw() {
 
   receive_message();
 
-  // The counter variables i and j are also the column and row numbers and 
-  // are used as arguments to the constructor for each object in the grid.  
+  // The counter variables i and j are also the column and row numbers and
+  // are used as arguments to the constructor for each object in the grid.
   for (int i = 0; i < cols; i++) {
     for (int j = 0; j < rows; j++) {
       // Oscillate and display each object
@@ -138,14 +138,14 @@ void draw() {
     for (int y = 0; y < height; y += 4) {
 //      colr = nearest_neighbor(x, y);
       colr = bilinear(x, y);
-//      stroke(colr, colr < (color_max - colr) ? 2 * colr : 2 * (color_max - colr), color_max - colr);
-//      fill(colr, colr < (color_max - colr) ? 2 * colr : 2 * (color_max - colr), color_max - colr);
+//      stroke(colr, colr < (COLOR_MAX - colr) ? 2 * colr : 2 * (COLOR_MAX - colr), COLOR_MAX - colr);
+//      fill(colr, colr < (COLOR_MAX - colr) ? 2 * colr : 2 * (COLOR_MAX - colr), COLOR_MAX - colr);
 
-      if (colr > color_max)
-        colr = color_max;
+      if (colr > COLOR_MAX)
+        colr = COLOR_MAX;
 
       // rotate Hue between 0 and 220 degrees
-      int angle = (220 * (color_max - colr)) / color_max;
+      int angle = (220 * (COLOR_MAX - colr)) / COLOR_MAX;
       stroke(angle, 100, 100);
       fill(angle, 100, 100);
       rect(200 + x, y, 10, 4);
@@ -155,7 +155,7 @@ void draw() {
 
 // A Cell object
 class Cell {
-  // A cell object knows about its location in the grid 
+  // A cell object knows about its location in the grid
   // as well as its size with the variables x,y,w,h
   float x,y;   // x,y location
   float w,h;   // width and height
@@ -168,11 +168,11 @@ class Cell {
     w = tempW;
     h = tempH;
     angle = tempAngle;
-  } 
-  
+  }
+
   // Oscillation means increase angle
   void oscillate() {
-    angle += 0.02; 
+    angle += 0.02;
   }
 
   void display() {
@@ -182,16 +182,16 @@ class Cell {
 
     int idx = floor((rows * (x / 40)) + ((y / 40)));
     int colr = data[idx];
-//    stroke(colr, 0, color_max - colr);
-//    fill(colr, 0, color_max - colr);
-//    stroke(colr, colr < (color_max - colr) ? 2 * colr : 2 * (color_max - colr), color_max - colr);
-//    fill(colr, colr < (color_max - colr) ? 2 * colr : 2 * (color_max - colr), color_max - colr);
+//    stroke(colr, 0, COLOR_MAX - colr);
+//    fill(colr, 0, COLOR_MAX - colr);
+//    stroke(colr, colr < (COLOR_MAX - colr) ? 2 * colr : 2 * (COLOR_MAX - colr), COLOR_MAX - colr);
+//    fill(colr, colr < (COLOR_MAX - colr) ? 2 * colr : 2 * (COLOR_MAX - colr), COLOR_MAX - colr);
 
-      if (colr > color_max)
-        colr = color_max;
+      if (colr > COLOR_MAX)
+        colr = COLOR_MAX;
 
       // rotate Hue between 0 and 220 degrees
-      int angle = (220 * (color_max - colr)) / color_max;
+      int angle = (220 * (COLOR_MAX - colr)) / COLOR_MAX;
       stroke(angle, 100, 100);
       fill(angle, 100, 100);
 
