@@ -1,6 +1,6 @@
 import processing.serial.*;
 
-static String PORT = "/dev/ttyUSB3"; // Serial port
+static String PORT = "/dev/ttyUSB0"; // Serial port
 static int MAX_VALUES = 80;
 static char PROTOCOL_HDR1 = 'M'; // Magic
 static char PROTOCOL_HDR2 = 'V'; // Value
@@ -103,13 +103,13 @@ void setup() {
 
   size(400,640);
 
-  grid = new Cell[cols][rows];
+  /*grid = new Cell[cols][rows];
   for (int i = 0; i < cols; i++) {
     for (int j = 0; j < rows; j++) {
       // Initialize each object
       grid[i][j] = new Cell(i*40,j*40,40,40,i+j);
     }
-  }
+  }*/
   
   colorMode(HSB, 360, 100, 100);
 }
