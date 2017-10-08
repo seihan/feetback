@@ -1,26 +1,16 @@
 import processing.serial.*;
 
-<<<<<<< HEAD
-static String PORT = "/dev/ttyUSB0"; // Serial port
-static int MAX_VALUES = 80;
-static char PROTOCOL_HDR1 = 'M'; // Magic
-static char PROTOCOL_HDR2 = 'V'; // Value
-static int [] data;
-
-static int color_max = 4095;
-=======
-static final String PORT = "/dev/ttyUSB0"; // Serial port
+static final String PORT = "/dev/ttyUSB3"; // Serial port
 static final char   PROTOCOL_HDR1 = 'M'; // Magic
 static final char   PROTOCOL_HDR2 = 'V'; // Value
 static final int    COLS = 5; // Columns in the grid
 static final int    ROWS = 16; // Rows in the grid
-static final int    COLOR_MAX = 400; // Maximum color value (largest expected data point)
+static final int    COLOR_MAX = 2500; // Maximum color value (largest expected data point)
 static final int    WIDTH = 200; // Width of the drawing area
 static final int    HEIGHT = 640; // Height of the drawing area
 
 int [][] data; // Received data values
 Cell[][] grid; // 2D Array of objects
->>>>>>> refs/remotes/origin/master
 
 Serial usbPort;  // Create object from Serial class
 
@@ -38,6 +28,10 @@ int receive_message() {
   do {
     while ((res == null) || (res[0] != PROTOCOL_HDR1)) {
       res = usbPort.readBytes(1);
+      // FIXME: sometimes serial is just not ready?!
+      if (res == null) {
+        delay(10);
+      }
     }
     res = usbPort.readBytes(1);
   } while ((res == null) || (res[0] != PROTOCOL_HDR2));
@@ -63,11 +57,11 @@ int receive_message() {
   len = res.length / 2;
   for (int idx = 0; idx < len; idx++) {
     // sort into right grid point row by row
-    data[idx % COLS][idx / COLS] = unsigned(res[(2 * idx)]) + 256 * unsigned(res[(2 * idx) + 1]);
-  }
+    int x = idx % COLS;
+    int y = idx / COLS;
+    data[x][y] = unsigned(res[(2 * idx)]) + 256 * unsigned(res[(2 * idx) + 1]);
 
-  for (int val : data) {
-    print(val);
+    print(data[x][y]);
     print(' ');
   }
   println();
@@ -104,36 +98,25 @@ int bilinear(int x, int y) {
 }
 
 void setup() {
-    // Set up Serial connection
+  // Set up Serial connection
   usbPort = new Serial(this, PORT, 115200);
   // FIXME: wait a little here for reliable connection
-  do {
-    delay(2000);
-  } while (usbPort.readBytes(1) == null);
+//  do {
+//    delay(2000);
+//  } while (usbPort.readBytes(1) == null);
 
   // Let's draw the data twice for now...
-  size(2 * WIDTH, HEIGHT);
+  size(400, 640); /* cannot use constants?! */
 
-<<<<<<< HEAD
-  /*grid = new Cell[cols][rows];
-  for (int i = 0; i < cols; i++) {
-    for (int j = 0; j < rows; j++) {
-=======
   // Initialize the grid of uniform color cells
   int cell_width = WIDTH / COLS;
   int cell_height = HEIGHT / ROWS;
   grid = new Cell[COLS][ROWS];
   for (int i = 0; i < COLS; i++) {
     for (int j = 0; j < ROWS; j++) {
->>>>>>> refs/remotes/origin/master
       // Initialize each object
       grid[i][j] = new Cell(i*cell_width,j*cell_height,cell_width,cell_height);
     }
-<<<<<<< HEAD
-  }*/
-  
-  colorMode(HSB, 360, 100, 100);
-=======
   }
 
   // Initialize the data point array
@@ -141,7 +124,6 @@ void setup() {
 
   // Configure color mode so COLOR_MAX corresponds to 220 degree Hue
   colorMode(HSB, (360 * COLOR_MAX) / 220, 100, 100);
->>>>>>> refs/remotes/origin/master
 }
 
 void draw() {
@@ -197,7 +179,7 @@ class Cell {
       colr = COLOR_MAX;
 
     // Invert color so hue matches 0 (red) for max value
-    colr = MAX_COLOR - colr;
+    colr = COLOR_MAX - colr;
 
     // draw the thing
     stroke(colr, 100, 100);
