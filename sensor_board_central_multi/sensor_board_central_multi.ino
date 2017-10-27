@@ -88,15 +88,18 @@ int s1 = 7;
 int s2 = 11;
 int s3 = 31;
 
+// Peripheral uart service
+BLEUart bleuart; // peripheral role <-> central device
+
 // Struct containing peripheral info
 typedef struct
 {
   char name[32];
 
   uint16_t conn_handle;
-
-  // Each prph need its own bleuart client service
-  BLEClientUart bleuart;
+  
+  // Each prph need its own central uart client
+  BLEClientUart clientUart; // central role <-> peripheral devices
 } prph_info_t;
 
 /* Peripheral info array (one per peripheral device)
@@ -141,8 +144,8 @@ void setup()
     prphs[idx].conn_handle = BLE_CONN_HANDLE_INVALID;
     
     // All of BLE Central Uart Serivce
-    prphs[idx].bleuart.begin();
-    prphs[idx].bleuart.setRxCallback(bleuart_rx_callback);
+    prphs[idx].clientUart.begin();
+    prphs[idx].clientUart.setRxCallback(clientUart_rx_callback);
   }
 
   // Callbacks for Central
@@ -179,16 +182,13 @@ void setup()
  */
 void sendAll(unsigned char* str, uint16_t len)
 {
- /* Serial.print("[Send to All]: ");
-  Serial.println(str);*/
-
   for(uint8_t id=0; id < MAX_CONNECTIONS; id++)
   {
     prph_info_t* peer = &prphs[id];
 
-    if ( peer->bleuart.discovered() )
+    if ( peer->clientUart.discovered() )
     {
-      peer->bleuart.write(str, len);
+      peer->clientUart.write(str, len);
     }
   }
 }
@@ -234,11 +234,11 @@ void connect_callback(uint16_t conn_handle)
   } else {
     Serial.print("Discovering BLE UART service ... ");
   
-    if ( peer->bleuart.discover(conn_handle) )
+    if ( peer->clientUart.discover(conn_handle) )
     {
       Serial.println("Found it");
       Serial.println("Enabling TXD characteristic's CCCD notify bit");
-      peer->bleuart.enableTXD();
+      peer->clientUart.enableTXD();
   
     } else
     {
@@ -303,7 +303,8 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
  * @param uart_svc Reference object to the service where the data 
  * arrived.
  */
-void bleuart_rx_callback(BLEClientUart& uart_svc)
+ 
+void clientUart_rx_callback(BLEClientUart& uart_svc)
 {
   // uart_svc is prphs[conn_handle].bleuart
   uint16_t conn_handle = uart_svc.connHandle();
