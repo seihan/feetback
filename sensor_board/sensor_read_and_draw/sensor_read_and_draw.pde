@@ -5,7 +5,7 @@ static final char   PROTOCOL_HDR1 = 'M'; // Magic
 static final char   PROTOCOL_HDR2 = 'V'; // Value
 static final int    COLS = 5; // Columns in the grid
 static final int    ROWS = 16; // Rows in the grid
-static final int    COLOR_MAX = 2500; // Maximum color value (largest expected data point)
+static final int    COLOR_MAX = 3000; // Maximum color value (largest expected data point)
 static final int    WIDTH = 200; // Width of the drawing area
 static final int    HEIGHT = 640; // Height of the drawing area
 
@@ -129,7 +129,7 @@ void setup() {
 void draw() {
   blendMode(BLEND);
   background(0);
-
+  
   receive_message();
 
   // Draw each cell
