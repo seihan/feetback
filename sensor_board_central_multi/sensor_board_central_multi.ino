@@ -1,4 +1,3 @@
-
 /*********************************************************************
  This is an example for our nRF52 based Bluefruit LE modules
 
@@ -32,7 +31,7 @@
  * 
  * Connection Handle Explanation
  * -----------------------------
- * The total number of connections is BLE_MAX_CONN = BLE_PRPH_MAX_CONN + MAX_CONNECTIONS.
+ * The total number of connections is BLE_MAX_CONN = BLE_PRPH_MAX_CONN + BLE_CENTRAL_MAX_CONN.
  * 
  * The 'connection handle' is an integer number assigned by the SoftDevice
  * (Nordic's proprietary BLE stack). Each connection will receive it's own
@@ -50,16 +49,19 @@
  * LED_RED   - Blinks pattern changes based on the number of connections.
  * LED_BLUE  - Blinks constantly when scanning
  */
-
-#define MAX_CONNECTIONS 2
-#define MAX_VALUES 2
-#define ROWS 16
-#define COLUMNS 5
+#define MAX_CONNECTIONS 2 // Number of peripherals
+#define MAX_VALUES 2  // arraysize for bleuart
+#define MAX_VALUES_SL 80 // arraysize for serial
+#define ROWS 16 // sensor matrix
+#define COLUMNS 5 // sensor matrix
+#define READINGS 10 // smooth adc reading 
 
 #include <bluefruit.h>
 #include "protocol.h"
 
 static struct message_t msg;
+static struct message_sl msgsl;
+
 int duration = 0;
 // array to store values
 uint16_t values[ ROWS ][ COLUMNS ] = {}; //[rows][columns]
@@ -75,14 +77,16 @@ const int columnPins[ COLUMNS ] = {
   27, 30, 16, 6, 20
 };
 
+// input pins
+const int inputPins[ COLUMNS ] = {
+  A0, A1, A2, A3, A4
+};
+
 //mux control pins
 int s0 = 15;
 int s1 = 7;
 int s2 = 11;
 int s3 = 31;
-
-//mux in "SIG" pin
-int SIG_pin = A3;
 
 // Struct containing peripheral info
 typedef struct
@@ -114,14 +118,17 @@ uint8_t connection_num = 0; // for blink pattern
 
 void setup() 
 {
+  // ADC config
+  analogReference(AR_INTERNAL_3_0); //AR_VDD4);
+  analogReadResolution(12);
   Serial.begin(115200);
 
   // Initialize blinkTimer for 100 ms and start it
   blinkTimer.begin(100, blink_timer_callback);
   blinkTimer.start();
 
-  Serial.println("Left Sensor Sole Central UART");
-  Serial.println("-----------------------------------------\n");
+  //Serial.println("Left Sensor Sole Central UART");
+  //Serial.println("-----------------------------------------\n");
   
   // Enable both peripheral and central
   Bluefruit.begin(false, true);
@@ -158,14 +165,13 @@ void setup()
   pinMode(s1, OUTPUT); 
   pinMode(s2, OUTPUT); 
   pinMode(s3, OUTPUT);
-  pinMode(SIG_pin, INPUT); 
-
   digitalWrite(s0, LOW);
   digitalWrite(s1, LOW);
   digitalWrite(s2, LOW);
   digitalWrite(s3, LOW);
   
   msg.length = MAX_VALUES;
+  msgsl.length = MAX_VALUES_SL;
 }
 
 /**
@@ -366,9 +372,9 @@ void blink_timer_callback(TimerHandle_t xTimerID)
 }
 
 /**
- * analogRead through a 16 channel muxer
+ * digitalWrite through a 16 channel muxer
  */
-uint16_t readMux(int channel) {
+void writeMux(int channel) {
   int controlPin[] = {s0, s1, s2, s3};
 
   int muxChannel[ ROWS ][ 4 ] = {
@@ -394,27 +400,38 @@ uint16_t readMux(int channel) {
   for (int i = 0; i < 4; i ++) {
     digitalWrite(controlPin[i], muxChannel[channel][i]);
   }
-
-  //read the value at the SIG pin
-  uint16_t val = analogRead(SIG_pin);
-
-  //return the value
-  return val;
 }
 
 void loop()
 {
-  //read values
-  duration = millis();
-  for(int i = 0; i < COLUMNS; i++){
-    //digitalWrite(columnPins[i], HIGH);
-    for(int j = 0; j < ROWS; j++){
-      values[ j ][ i ] = readMux(j);
-    //  delay(1);
-    }
-    //digitalWrite(columnPins[i], LOW);
-  }
   
+  for (uint16_t& val : msg.data) { //reset values to zero
+    val = 0;
+  }
+  for (uint16_t& val : msgsl.data) { //reset values to zero
+    val = 0;
+  }
+  duration = millis();
+  uint16_t tmp = 0;
+  int k = 0;
+  for(int i = 0; i < ROWS; i++){
+    writeMux( i ); //set column HIGH
+    for(int j = 0; j < COLUMNS; j++){
+      for(int r = 0; r < READINGS; r++){
+        tmp += analogRead( inputPins[ j ] ); //read and sum READINGS times values
+      }
+      tmp = tmp / READINGS;
+      values [ i ][ j ] = tmp;
+      msgsl.data[ k ] = tmp;
+      k++;
+      //print values
+      //Serial.print(tmp);
+      //Serial.print(" ");
+    }
+    //Serial.println();
+  }
+//  Serial.println("-------------------------------------------------");
+
   //compute mean and max values
   for(int i = 0; i < ROWS; i++){
     for(int j = 0; j < COLUMNS; j++){
@@ -437,40 +454,30 @@ void loop()
       }
      }
   }  
-   duration = millis() - duration;
+  duration = millis() - duration;
+  //Serial.println(duration);
+  //Serial.println("-------------------------------------------------");
  
   //map values for pwm
-  msg.data[ 0 ] = map(msg.data[ 0 ], 0, 400, 0, 255);
-  msg.data[ 1 ] = map(msg.data[ 1 ], 0, 400, 0, 255);
-  
+  msg.data[ 0 ] = map(msg.data[ 0 ], 0, 4095, 0, 255);
+  msg.data[ 1 ] = map(msg.data[ 1 ], 0, 4095, 0, 255);
   //debug print
-  /*  for(int i = 0; i < 16; i++){
-    Serial.print(values[i][0]);
-    Serial.print("\t");
-    Serial.println(rowmax[i]);
-  }
-  Serial.println("----------\n");
-  for(int i = 0; i < 2; i++){
-    Serial.print(msg.data[ i ]);
-    Serial.print("\t");
-  }
-  Serial.println("\n----------\n");
-  Serial.print("duration = ");
-  Serial.print(duration);  
-  Serial.println("ms\n");*/
+  //Serial.print(msg.data[ 0 ]);
+  //Serial.print("\t");
+  //Serial.println(msg.data[ 1 ]);
   
   // First check if we are connected to any peripherals
   if ( Bluefruit.Central.connected() )
   {
-    // Serial.println("Sending message");
-    send_message(&msg);
-    Serial.print(msg.data[ 0 ]);
-    Serial.print("\t");
-    Serial.println(msg.data[ 1 ]);
-    delay(50);
+    send_message(&msg); // central -> peripheral
   }
-  
-  for (uint16_t& val : msg.data) { //reset values to zero
-    val = 0;
+  /*// First check if we are connected to a central device (Smartphone)
+  if ( Bluefruit.Peripheral.connected() )
+  {
+    send_to_central(&msgp); // peripheral -> central
+  }*/
+  // First check if serial connection is available
+  if ( Serial.available() );{
+    send_serial(&msgsl); // USB -> PC
   }
 }
