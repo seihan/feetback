@@ -3,11 +3,11 @@ import processing.serial.*;
 static final String PORT = "/dev/ttyUSB3"; // Serial port
 static final char   PROTOCOL_HDR1 = 'M'; // Magic
 static final char   PROTOCOL_HDR2 = 'V'; // Value
-static final int    COLS = 5; // Columns in the grid
-static final int    ROWS = 16; // Rows in the grid
-static final int    COLOR_MAX = 3000; // Maximum color value (largest expected data point)
-static final int    WIDTH = 200; // Width of the drawing area
-static final int    HEIGHT = 640; // Height of the drawing area
+static final int    COLS = 12; // Columns in the grid
+static final int    ROWS = 11; // Rows in the grid
+static final int    COLOR_MAX = 4095; // Maximum color value (largest expected data point)
+static final int    WIDTH = 480; // Width of the drawing area
+static final int    HEIGHT = 440; // Height of the drawing area
 
 int [][] data; // Received data values
 Cell[][] grid; // 2D Array of objects
@@ -101,12 +101,12 @@ void setup() {
   // Set up Serial connection
   usbPort = new Serial(this, PORT, 115200);
   // FIXME: wait a little here for reliable connection
-//  do {
-//    delay(2000);
-//  } while (usbPort.readBytes(1) == null);
+  do {
+    delay(2000);
+  } while (usbPort.readBytes(1) == null);
 
   // Let's draw the data twice for now...
-  size(400, 640); /* cannot use constants?! */
+  size(480, 440); /* cannot use constants?! */
 
   // Initialize the grid of uniform color cells
   int cell_width = WIDTH / COLS;

@@ -12,7 +12,12 @@ const int inputPins[ COLUMNS ] = {
   A0, A1, A2, A3, A4
 };
 
-// mux control pins
+// column pins to set column high
+const int columnPins[ COLUMNS ] = {
+  27, 30, 16, 6, 20
+};
+
+//mux control pins
 int s0 = 15;
 int s1 = 7;
 int s2 = 11;
@@ -20,13 +25,13 @@ int s3 = 31;
 
 void setup(){
   // ADC config
-  analogReference(AR_VDD4);
+  analogReference(AR_INTERNAL_3_0);
   analogReadResolution(12);
-  // PIN config
   pinMode(s0, OUTPUT); 
   pinMode(s1, OUTPUT); 
   pinMode(s2, OUTPUT); 
   pinMode(s3, OUTPUT);
+
   digitalWrite(s0, LOW);
   digitalWrite(s1, LOW);
   digitalWrite(s2, LOW);
@@ -80,6 +85,7 @@ void loop(){
     writeMux( i ); //set column HIGH
     for(int j = 0; j < COLUMNS; j++){
       msg.data[ k ] = analogRead( inputPins[ j ] ); //read values
+      delay(1);
       //print values
       //Serial.print(msg.data[ k ]);
       //Serial.print(" ");
@@ -94,5 +100,5 @@ void loop(){
   for (uint16_t& val : msg.data) { //reset values to zero
     val = 0;
   }
-  //delay(200);
+//  delay(200);
 }

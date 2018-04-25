@@ -26,24 +26,12 @@ static struct message_t msg;
 
 const int outputPins[ 4 ] = { 2, 3, 4, 5 };
 
+const int ledPin =  LED_RED;
+int outState = LOW;             // ledState used to set the LED
+
 unsigned long previousMillis = 0;
-int outState = LOW;
-
-// Software Timer for blinking RED LED
-SoftwareTimer blinkTimer;
-/**
-   Software Timer callback is invoked via a built-in FreeRTOS thread with
-   minimal stack size. Therefore it should be as simple as possible. If
-   a periodically heavy task is needed, please use Scheduler.startLoop() to
-   create a dedicated task for it.
-
-   More information http://www.freertos.org/RTOS-software-timer.html
-*/
-void blink_timer_callback(TimerHandle_t xTimerID)
-{
-  (void) xTimerID;
-  digitalToggle(LED_RED);
-}
+int interval = 1000;           // interval at which to blink (milliseconds)
+float dcfactor = 1;   // duty cycle factor
 
 /**
    RTOS Idle callback is automatically invoked by FreeRTOS
@@ -81,20 +69,17 @@ void rtos_idle_callback(void)
   waitForEvent();
 }
 
-
 void intro() {
   for (int i = 0; i < 3; i++)
   {
     delay(200);
-    digitalWrite(outputPins[ 0 ], HIGH);
-    analogWrite(outputPins[ 1 ], 255);
-    analogWrite(outputPins[ 2 ], 255);
-    analogWrite(outputPins[ 3 ], 255);
+    for (int j = 0; j < 4; j++) {
+      analogWrite(outputPins[ j ], 255);
+    }
     delay(200);
-    digitalWrite(outputPins[ 0 ], LOW);
-    analogWrite(outputPins[ 1 ], 0);
-    analogWrite(outputPins[ 2 ], 0);
-    analogWrite(outputPins[ 3 ], 0);
+    for (int j = 0; j < 4; j++) {
+      analogWrite(outputPins[ j ], 0);
+    }
   }
 }
 
@@ -126,37 +111,6 @@ void startAdv(void)
   Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
 }
 
-bool pwm_ready = true;
-int pwm_period_ms = 50;
-int pwm_duty_cycle_ms = 25;
-
-SoftwareTimer pwmDutyCycleTimer;
-void pwm_duty_cycle_callback(TimerHandle_t xTimerID)
-{
-  (void) xTimerID;
-  pwmDutyCycleTimer.stop();
-
-  // switch motor off
-  digitalWrite(outputPins[ 0 ], LOW);
-  digitalWrite(LED_RED, HIGH);
-
-  // pwm can be reset
-  pwm_ready = true;
-}
-
-SoftwareTimer pwmPeriodTimer;
-void pwm_period_callback(TimerHandle_t xTimerID)
-{
-  (void) xTimerID;
-
-  // switch motor on
-  digitalWrite(outputPins[ 0 ], HIGH);
-  digitalWrite(LED_RED, LOW);
-
-  // start duty cycle timeout
-  pwmDutyCycleTimer.setPeriod(pwm_duty_cycle_ms);
-  pwmDutyCycleTimer.start();
-}
 void connect_callback(uint16_t conn_handle)
 {
   char central_name[32] = { 0 };
@@ -164,7 +118,6 @@ void connect_callback(uint16_t conn_handle)
 
   Serial.print("Connected to ");
   Serial.println(central_name);
-  pwmPeriodTimer.start();
 }
 
 void disconnect_callback(uint16_t conn_handle, uint8_t reason)
@@ -174,13 +127,13 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 
   Serial.println();
   Serial.println("Disconnected");
-  pwmPeriodTimer.stop();
   intro();
 }
 
 void setup()
 {
   pinMode(outputPins[ 0 ], OUTPUT);
+  pinMode(ledPin, OUTPUT);
   intro();
   Serial.begin(115200);
   Serial.println("Haptic Feedback Actuator");
@@ -189,17 +142,11 @@ void setup()
     msg.data[i] = i + 1;
   }
 
-  // Initialize blinkTimer for 1000 ms and start it
-  //blinkTimer.begin(1000, blink_timer_callback);
-  //blinkTimer.start();
   // Setup the BLE LED to be enabled on CONNECT
   // Note: This is actually the default behaviour, but provided
   // here in case you want to control this LED manually via PIN 19
   Bluefruit.autoConnLed(true);
-  Serial.println("AutoConnLED TRUE");
-
   Bluefruit.begin();
-  Serial.println("Bluefruit begin");
   // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
   Bluefruit.setTxPower(4);
   Bluefruit.setName("Left2VibActuator");
@@ -226,10 +173,6 @@ void setup()
 
   Serial.println("The device receive two pwm values via UART");
   Serial.println("Using serial message protocol defined in 'protocol.h'");
-
-  pwmPeriodTimer.begin(pwm_period_ms, pwm_period_callback);
-  pwmDutyCycleTimer.begin(pwm_duty_cycle_ms, pwm_duty_cycle_callback);
-
 }
 
 void loop()
@@ -238,30 +181,13 @@ void loop()
 
     int bytesread = receive_message(&msg);
 
-    //  Serial.print("Received value ");
-    //  Serial.println(msg.data[0]);
-    pwm_period_ms = map(msg.data[ 0 ], 0, 255, 4, 300);
-    pwm_period_ms = constrain(pwm_period_ms, 4, 300);
-
-  /*  if ((pwm_period_ms < 4) || (pwm_period_ms > 300) || (not pwm_ready)) {
-      waitForEvent();
-      return;
-    }*/
-    int old_duty_cycle = pwm_duty_cycle_ms;
-    pwm_duty_cycle_ms = pwm_period_ms / 2;
-
-    Serial.print("Setting period/duty cycle ");
-    Serial.print(pwm_period_ms);
-    Serial.print(" ms / ");
-    Serial.print(pwm_duty_cycle_ms);
-    Serial.println(" ms");
-
-    if (old_duty_cycle == pwm_duty_cycle_ms) {
-      //Serial.println("(not resetting period)");
-    } else {
-      pwmPeriodTimer.setPeriod(pwm_period_ms);
-      pwm_ready = false;
-    }
+    Serial.print("Received value ");
+    Serial.print(msg.data[ 0 ]);
+    Serial.print("\t");
+    Serial.println(msg.data[ 1 ]);
+    analogWrite(outputPins[ 0 ], msg.data[ 1 ]); // rear vib
+    analogWrite(outputPins[ 1 ], (msg.data[ 0 ] + msg.data[ 1 ]) / 2); // led
+    analogWrite(outputPins[ 2 ], msg.data[ 0 ]); // front vib
   }
   // Request CPU to enter low-power mode until an event/interrupt occurs
   waitForEvent();
