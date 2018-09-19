@@ -1,19 +1,21 @@
 /*********************************************************************
- This is an example for our nRF52 based Bluefruit LE modules
+  This is an example for our nRF52 based Bluefruit LE modules
 
- Pick one up today in the adafruit shop!
+  Pick one up today in the adafruit shop!
 
- Adafruit invests time and resources providing this open source code,
- please support Adafruit and open-source hardware by purchasing
- products from Adafruit!
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
+  products from Adafruit!
 
- MIT license, check LICENSE for more information
- All text above, and the splash screen below must be included in
- any redistribution
-********************************************************************
+  MIT license, check LICENSE for more information
+  All text above, and the splash screen below must be included in
+  any redistribution
+*********************************************************************
  FSR Sensor Board
 
- Read and transmit 956 pressure values via USB or BLE UART
+ Read 956 pressure values and transmit 2 (front, rear) via BLE UART
+
+ Peripheral -> Central (Smart Device)
 
 ********************************************************************/
 
@@ -26,7 +28,7 @@ SPISettings settings(20000000, MSBFIRST, SPI_MODE0);
 BLEDis  bledis;
 BLEUart bleuart;
 
-#define MAX_VALUES 956
+#define MAX_VALUES 2
 #include "protocol.h"
 
 #include "sole_fsr956.h"
@@ -38,13 +40,10 @@ bool ready = false;
 
 void setup()
 {
-  //Serial.begin(115200);
-  Serial.begin(230400);
-  Serial.println("FSR Sensor Board - Wired and Wireless UART");
+  Serial.begin(115200);
+  //Serial.begin(230400);
+  Serial.println("FSR Sensor Board - Wireless BLE UART");
   Serial.println("---------------------------\n");
-
-  Serial.print("Message size (bytes): ");
-  Serial.println(sizeof(msg));
 
   analogReference(AR_INTERNAL_1_2);
   analogReadResolution(14);
@@ -59,7 +58,7 @@ void setup()
   // here in case you want to control this LED manually via PIN 19
   Bluefruit.autoConnLed(true);
 
-  // Config the peripheral connection with maximum bandwidth 
+  // Config the peripheral connection with maximum bandwidth
   // more SRAM required by SoftDevice
   // Note: All config***() function must be called before begin()
   Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
@@ -96,38 +95,50 @@ void startAdv(void)
   // Secondary Scan Response packet (optional)
   // Since there is no room for 'Name' in Advertising packet
   Bluefruit.ScanResponse.addName();
-  
+
   /* Start Advertising
-   * - Enable auto advertising if disconnected
-   * - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
-   * - Timeout for fast mode is 30 seconds
-   * - Start(timeout) with timeout = 0 will advertise forever (until connected)
-   * 
-   * For recommended advertising interval
-   * https://developer.apple.com/library/content/qa/qa1931/_index.html   
-   */
+     - Enable auto advertising if disconnected
+     - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
+     - Timeout for fast mode is 30 seconds
+     - Start(timeout) with timeout = 0 will advertise forever (until connected)
+
+     For recommended advertising interval
+     https://developer.apple.com/library/content/qa/qa1931/_index.html
+  */
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.setInterval(32, 244);    // in unit of 0.625 ms
   Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
-  Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds  
+  Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
 }
 
 void loop()
 {
-  if (Serial.available()){
-    msg.length = read_sole(msg.data);
-    send_to_serial(&msg);
-  } else {
-    // Request CPU to enter low-power mode until an event/interrupt occurs
-    waitForEvent();    
+  uint16_t values[ 956 ] = {};
+
+  for (uint16_t& val : msg.data) val = 0;
+
+  read_sole(values);
+
+  for (int i = 0; i < 956; i++) {
+    if ( i <= 428 ) {
+      if ( msg.data[ 0 ] < values[ i ] ) msg.data[ 0 ] = values[ i ];
+    }
+    else {
+      if ( msg.data[ 1 ] < values[ i ] ) msg.data[ 1 ] = values[ i ];
+    }
   }
+
+  /*Serial.print(msg.data[ 0 ]);
+  Serial.print("\t");
+  Serial.println(msg.data[ 1 ]);*/
   
   if (ready) {
-    msg.length = read_sole(msg.data);
+    msg.length = sizeof(msg.data);
+    //bleuart.println(String(msg.data[ 0 ]) + ";" + String(msg.data[ 1 ]));
     send_to_central(&msg);//transmit values
   } else {
     // Request CPU to enter low-power mode until an event/interrupt occurs
-    waitForEvent();    
+    waitForEvent();
   }
 }
 
@@ -154,13 +165,13 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 }
 
 /**
- * Software Timer callback is invoked via a built-in FreeRTOS thread with
- * minimal stack size. Therefore it should be as simple as possible. If
- * a periodically heavy task is needed, please use Scheduler.startLoop() to
- * create a dedicated task for it.
- * 
- * More information http://www.freertos.org/RTOS-software-timer.html
- */
+   Software Timer callback is invoked via a built-in FreeRTOS thread with
+   minimal stack size. Therefore it should be as simple as possible. If
+   a periodically heavy task is needed, please use Scheduler.startLoop() to
+   create a dedicated task for it.
+
+   More information http://www.freertos.org/RTOS-software-timer.html
+*/
 void blink_timer_callback(TimerHandle_t xTimerID)
 {
   (void) xTimerID;
@@ -168,22 +179,23 @@ void blink_timer_callback(TimerHandle_t xTimerID)
 }
 
 /**
- * RTOS Idle callback is automatically invoked by FreeRTOS
- * when there are no active threads. E.g when loop() calls delay() and
- * there is no bluetooth or hw event. This is the ideal place to handle
- * background data.
- * 
- * NOTE: FreeRTOS is configured as tickless idle mode. After this callback
- * is executed, if there is time, freeRTOS kernel will go into low power mode.
- * Therefore waitForEvent() should not be called in this callback.
- * http://www.freertos.org/low-power-tickless-rtos.html
- * 
- * WARNING: This function MUST NOT call any blocking FreeRTOS API 
- * such as delay(), xSemaphoreTake() etc ... for more information
- * http://www.freertos.org/a00016.html
- */
+   RTOS Idle callback is automatically invoked by FreeRTOS
+   when there are no active threads. E.g when loop() calls delay() and
+   there is no bluetooth or hw event. This is the ideal place to handle
+   background data.
+
+   NOTE: FreeRTOS is configured as tickless idle mode. After this callback
+   is executed, if there is time, freeRTOS kernel will go into low power mode.
+   Therefore waitForEvent() should not be called in this callback.
+   http://www.freertos.org/low-power-tickless-rtos.html
+
+   WARNING: This function MUST NOT call any blocking FreeRTOS API
+   such as delay(), xSemaphoreTake() etc ... for more information
+   http://www.freertos.org/a00016.html
+*/
 void rtos_idle_callback(void)
 {
   // Don't call any other FreeRTOS blocking API()
   // Perform background task(s) here
 }
+
