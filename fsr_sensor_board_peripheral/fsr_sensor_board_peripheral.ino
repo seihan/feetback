@@ -1,3 +1,4 @@
+
 /*********************************************************************
   This is an example for our nRF52 based Bluefruit LE modules
 
@@ -28,7 +29,7 @@ SPISettings settings(20000000, MSBFIRST, SPI_MODE0);
 BLEDis  bledis;
 BLEUart bleuart;
 
-#define MAX_VALUES 2
+#define MAX_VALUES 2 // 956
 #include "protocol.h"
 
 #include "sole_fsr956.h"
@@ -63,10 +64,10 @@ void setup()
   // Note: All config***() function must be called before begin()
   Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
 
-  Bluefruit.begin();
+  Bluefruit.begin(true, false);
   // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
   Bluefruit.setTxPower(4);
-  Bluefruit.setName("FSR-Sensor-Right");
+  Bluefruit.setName("FSR Sensor - right");
   //Bluefruit.setName(getMcuUniqueID()); // useful testing with multiple central connections
   Bluefruit.setConnectCallback(connect_callback);
   Bluefruit.setDisconnectCallback(disconnect_callback);
@@ -127,14 +128,10 @@ void loop()
       if ( msg.data[ 1 ] < values[ i ] ) msg.data[ 1 ] = values[ i ];
     }
   }
-
-  /*Serial.print(msg.data[ 0 ]);
-  Serial.print("\t");
-  Serial.println(msg.data[ 1 ]);*/
   
   if (ready) {
     msg.length = sizeof(msg.data);
-    //bleuart.println(String(msg.data[ 0 ]) + ";" + String(msg.data[ 1 ]));
+    // bleuart.println(String(msg.data[ 0 ]) + ";" + String(msg.data[ 1 ]));
     send_to_central(&msg);//transmit values
   } else {
     // Request CPU to enter low-power mode until an event/interrupt occurs
@@ -198,4 +195,3 @@ void rtos_idle_callback(void)
   // Don't call any other FreeRTOS blocking API()
   // Perform background task(s) here
 }
-
