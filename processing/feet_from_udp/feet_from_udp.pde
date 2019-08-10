@@ -9,7 +9,7 @@
 import hypermedia.net.*;
 import processing.serial.*;
 
-static final int MIN_COLOR_MAX = 1000; // Maximum color value (largest expected data point)
+static final int MIN_COLOR_MAX = 4000; // Maximum color value (largest expected data point)
 static int COLOR_MAX = MIN_COLOR_MAX; // Maximum color value (largest expected data point)
 static final char   PROTOCOL_HDR1 = 'M'; // Magic
 static final char   PROTOCOL_HDR2 = 'V'; // Value
@@ -279,6 +279,7 @@ void receive( byte[] data ) {       // <-- default handler
 
   for (int idx = 0; idx < data.length; idx+=2, received++) {
     values[received] = int(data[idx]) + (256 * int(data[idx + 1]));
+    //values[received] = int(data[received]);
     //print(values[received]);
     //print("\t");
   }
