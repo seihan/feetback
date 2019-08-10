@@ -38,7 +38,7 @@ def main():
         len2 = uart.read()
         length = ord(len1) + 256 * ord(len2)
         #print('Receiving {0} values'.format(length))
-        received = uart.read(2*length)
+        received = uart.read(4*length) # 4 bytes per measurement
 
         if received is not None:
             if first:

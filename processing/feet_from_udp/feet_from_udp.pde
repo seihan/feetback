@@ -134,7 +134,8 @@ void update_grid() {
       //int colour = (col-11) * (row-30) * 18;
       //if ((values != null) && (k < values.length))
       if ((values != null) && (stencil[row][col] != -1) && (k < values.length)) {
-        colour = values[k++];  // fill values into grid positions
+        colour = values[k];  // fill values into grid positions
+        values[k++] /= 2; // decay value
       }
 
       if (colour > max_value) {
@@ -172,6 +173,7 @@ void setup() {
   //udp.log( true );     // <-- printout the connection activity
   udp.listen( true );
   
+  values = new int[COLUMNS * ROWS];
   update_grid();
 }
   
@@ -264,11 +266,10 @@ void receive( byte[] data ) {       // <-- default handler
     //print(expected);
     //println();
     received = 0;
-    values = new int[expected];
     data = subset(data, 4);
   }
 
-  if ((data.length / 2) > (expected - received)) {
+  if ((data.length / 4) > (expected - received)) {
       print("!");
       //print("WARNING: Discarding overfull message - packet loss?");
       //println();
@@ -277,8 +278,9 @@ void receive( byte[] data ) {       // <-- default handler
       return;
   }
 
-  for (int idx = 0; idx < data.length; idx+=2, received++) {
-    values[received] = int(data[idx]) + (256 * int(data[idx + 1]));
+  for (int idx = 0; idx < data.length; idx+=4, received++) {
+    int offset = int(data[idx]) + (256 * int(data[idx + 1]));
+    values[offset] = int(data[idx+2]) + (256 * int(data[idx + 3]));
     //values[received] = int(data[received]);
     //print(values[received]);
     //print("\t");

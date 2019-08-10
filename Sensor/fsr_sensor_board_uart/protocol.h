@@ -14,10 +14,15 @@ static const unsigned char PROTOCOL_HDR2 = 'V';
 static const int BLE_MTU = 60; // max bytes per packet
 static const int SERIAL_MTU = 1024; // max bytes per packet
 
+struct measure_t {
+  uint16_t offset;
+  uint16_t value;
+};
+
 struct message_t {
   unsigned char protocol_header[2] {PROTOCOL_HDR1, PROTOCOL_HDR2}; // data start marker
-  uint16_t length; // #values in the message
-  uint16_t data[MAX_VALUES];
+  uint16_t length; // number of measurements 
+  measure_t data[MAX_VALUES];
 };
 
 void sendtoPeripherals(unsigned char* str, uint16_t len);
