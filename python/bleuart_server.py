@@ -1,21 +1,16 @@
-import cv2
+'''
+    Simple socket server using threads
+'''
+
 import socket
+import sys
 
-# UDP server conf
-UDP_IP = "127.0.0.1"
-UDP_PORT = 5005
-
-print "UDP target IP:", UDP_IP
-print "UDP target port:", UDP_PORT
-
-sock = socket.socket(socket.AF_INET, # Internet
-                      socket.SOCK_DGRAM) # UDP
-
-# Bluetooth LOW ENERGY conf
-
+# Example of interaction with a BLE UART device using a UART service
+# implementation.
 # Author: Tony DiCola
 import Adafruit_BluefruitLE
 from Adafruit_BluefruitLE.services import UART
+
 
 # Get the BLE provider for the current platform.
 ble = Adafruit_BluefruitLE.get_provider()
@@ -26,6 +21,29 @@ ble = Adafruit_BluefruitLE.get_provider()
 # of automatically though and you just need to provide a main function that uses
 # the BLE provider.
 def main():
+    HOST = ''   # Symbolic name, meaning all available interfaces
+    PORT = 8888 # Arbitrary non-privileged port
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print 'Socket created'
+
+    #Bind socket to local host and port
+    try:
+        s.bind((HOST, PORT))
+    except socket.error as msg:
+        print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+        sys.exit()
+
+    print 'Socket bind complete'
+
+    #Start listening on socket
+    s.listen(10)
+    print 'Socket now listening'
+    #wait to accept a connection - blocking call
+    conn, addr = s.accept()
+    print 'Connected with ' + addr[0] + ':' + str(addr[1])
+
+
     # Clear any cached data because both bluez and CoreBluetooth have issues with
     # caching data and it going stale.
     ble.clear_cached_data()
@@ -44,7 +62,6 @@ def main():
     print('Searching for UART device...')
     try:
         adapter.start_scan()
-        print('Scanned...')
         # Search for the first UART device found (will time out after 60 seconds
         # but you can specify an optional timeout_sec parameter to change it).
         device = UART.find_device()
@@ -69,39 +86,28 @@ def main():
         # Once service discovery is complete create an instance of the service
         # and start interacting with it.
         uart = UART(device)
-        print('UART detected, waiting for values...')
+
         # Write a string to the TX characteristic.
-        # uart.write('Hello world!\r\n')
+        uart.write('Hello world!\r\n')
         # print("Sent 'Hello world!' to the device.")
 
         # Now wait up to one minute to receive data from the device.
-        #print('Waiting up to 60 seconds to receive data from the device...')
-        first = True
-        while True:
-            #k = cv2.waitKey(1) & 0xFF
-            # press 'q' to exit
-            #if k == ord('q'):
-            #    break
+        print('Waiting up to 60 seconds to receive data from the device...')
+        received = uart.read(timeout_sec=60)
 
-            received = uart.read(timeout_sec=60)
-
-            if received is not None:
-                if first:
-                    print('...receiving')
-                    first = False
-
+        if received is not None:
             # Received data, print it out.
-                sock.sendto(received, (UDP_IP, UDP_PORT))
-                print('Received {0} bytes'.format(len(received)))
-                #            for x in range(0, 30):
-                #                s.send(received)
-            else:
-                # Timeout waiting for data, None is returned.
-                print('Timeout')
-                break
+            #now keep talking with the client
+            print('Received something')
+            print(received)
+            s.sendall('Received something')
+        else:
+            # Timeout waiting for data, None is returned.
+            print('Received no data!')
     finally:
         # Make sure device is disconnected on exit.
         device.disconnect()
+        s.close
 
 
 # Initialize the BLE system.  MUST be called before other BLE calls!

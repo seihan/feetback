@@ -24,7 +24,8 @@ def main():
     global packets
     Timer(1, pps).start()
 
-    uart = serial.Serial('/dev/ttyUSB3', 230400)
+    uart = serial.Serial('/dev/ttyUSB0', 230400)
+    uart.write('Hello Sensors.')
     first = True
 
     while True:
