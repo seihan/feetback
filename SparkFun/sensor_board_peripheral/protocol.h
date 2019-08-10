@@ -41,13 +41,13 @@ struct message_sl {
   sendtoPeripherals(reinterpret_cast<unsigned char *>(msg->protocol_header), len);
   }*/
 
-void send_to_central(message_sl *msgsl) {
-  if (msgsl->length > MAX_VALUES_SL) {
-    msgsl->length = MAX_VALUES_SL;
+void send_to_central(message_t *msg) {
+  if (msg->length > MAX_VALUES) {
+    msg->length = MAX_VALUES;
   }
 
-  unsigned len = (msgsl->length * sizeof(uint16_t)) + 3;
-  BLESerial.write(reinterpret_cast<unsigned char *>(msgsl->protocol_header), len);
+  unsigned len = (msg->length * sizeof(uint16_t)) + 3;
+  BLESerial.write(reinterpret_cast<unsigned char *>(msg->protocol_header), len);
 }
 
 void send_to_serial(message_sl *msgsl) {

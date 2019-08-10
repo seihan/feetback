@@ -3,10 +3,10 @@ import processing.serial.*;
 static final String PORT = "/dev/ttyUSB3"; // Serial port
 static final char   PROTOCOL_HDR1 = 'M'; // Magic
 static final char   PROTOCOL_HDR2 = 'V'; // Value
-static final int    COLS = 12; // Columns in the grid
+static final int    COLS = 15; // Columns in the grid
 static final int    ROWS = 11; // Rows in the grid
 static final int    COLOR_MAX = 4095; // Maximum color value (largest expected data point)
-static final int    WIDTH = 480; // Width of the drawing area
+static final int    WIDTH = 600; // Width of the drawing area
 static final int    HEIGHT = 440; // Height of the drawing area
 
 int [][] data; // Received data values
@@ -23,7 +23,7 @@ int unsigned(byte val) {
 int receive_message() {
   byte [] res = null;
 
-  print("Receiving message... ");
+  //print("Receiving message... ");
   // find message start
   do {
     while ((res == null) || (res[0] != PROTOCOL_HDR1)) {
@@ -35,7 +35,7 @@ int receive_message() {
     }
     res = usbPort.readBytes(1);
   } while ((res == null) || (res[0] != PROTOCOL_HDR2));
-  print("found header ...  ");
+  //print("found header ...  ");
 
   // read length
   res = usbPort.readBytes(1);
@@ -43,8 +43,8 @@ int receive_message() {
     return 0;
 
   int len = int(res[0]);
-  print(len);
-  println(" values");
+  //print(len);
+  //println(" values");
 
   if (len > (ROWS * COLS))
     len = ROWS * COLS;
@@ -61,10 +61,10 @@ int receive_message() {
     int y = idx / COLS;
     data[x][y] = unsigned(res[(2 * idx)]) + 256 * unsigned(res[(2 * idx) + 1]);
 
-    print(data[x][y]);
-    print(' ');
+    //print(data[x][y]);
+    //print(' ');
   }
-  println();
+  //println();
 
   return len;
 }
@@ -106,7 +106,7 @@ void setup() {
   } while (usbPort.readBytes(1) == null);
 
   // Let's draw the data twice for now...
-  size(480, 440); /* cannot use constants?! */
+  size(600, 440); /* cannot use constants?! */
 
   // Initialize the grid of uniform color cells
   int cell_width = WIDTH / COLS;
