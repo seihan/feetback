@@ -42,7 +42,7 @@ int read_sole(uint16_t * values)
       if (sole[row].dc_pin[col] != -1) {
         int adc_pin = select_adc(sole[row].adc_pin);
         values[k++] = read_pin(adc_pin, sole[row].dc_pin[col]);
-        delayMicroseconds(12);
+        //delayMicroseconds(12);
       }
     }
   }
