@@ -16,7 +16,7 @@ static final char   PROTOCOL_HDR2 = 'V'; // Value
 static final int COLUMNS = 21;
 static final int ROWS = 60;
 static final int DRAW_FACTOR = 12;
-static final int SCALE_FACTOR = 4;
+static final int SCALE_FACTOR = 2;
 static final int WIDTH = COLUMNS * DRAW_FACTOR;
 static final int HEIGHT = ROWS * DRAW_FACTOR;
 static final int SCALE_COLUMNS = COLUMNS * SCALE_FACTOR;
@@ -155,6 +155,8 @@ void update_grid() {
 }
 
 PFont f;                           // STEP 1 Declare PFont variable
+int fps = 0;
+int start = 0;
 
 /**
  * init
@@ -177,6 +179,7 @@ void setup() {
   update_grid();
 }
   
+
 //process events
 void draw() {
   if (!Redraw) return;  // don't bother redrawing the same thing
@@ -239,8 +242,10 @@ void draw() {
   fill(0, 100, 100); // red
   textFont(f,DRAW_FACTOR+4);                  // STEP 3 Specify font to be used
   text(max_value, DRAW_FACTOR/2, 1.5*DRAW_FACTOR);   // STEP 5 Display Text
+  text(fps * 1000 / (millis() - start), 40*DRAW_FACTOR, 1.5*DRAW_FACTOR);   // STEP 5 Display Text
   textFont(f,DRAW_FACTOR-1);                  // STEP 3 Specify font to be used
 
+  fps++;
   Redraw = false;    // don't draw again until something changes
 }
 
@@ -288,7 +293,10 @@ void receive( byte[] data ) {       // <-- default handler
   
   if (received == expected) {
     // Full message received!
-    print(".");
+    //print(".");
+    if (start == 0) {
+      start = millis();
+    }
     update_grid();
   }
 }
