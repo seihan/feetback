@@ -25,9 +25,10 @@ BLEBas blebas;    // BAS (Battery Service) helper class instance
 
 struct feet_t
 {
-  uint8_t x;
-  uint8_t y;
-  uint16_t val[9];
+  struct {
+    uint16_t offset;
+    uint16_t value;  
+  } data[5];
 };
 
 // Advanced function prototypes
@@ -35,6 +36,7 @@ void startAdv(void);
 void setup_feetback(void);
 void connect_callback(uint16_t conn_handle);
 void disconnect_callback(uint16_t conn_handle, uint8_t reason);
+void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_value);
 
 void setup()
 {
@@ -57,8 +59,8 @@ void setup()
   Bluefruit.setName("FEETBACK Prph");
 
   // Set the connect/disconnect callback handlers
-  Bluefruit.setConnectCallback(connect_callback);
-  Bluefruit.setDisconnectCallback(disconnect_callback);
+  Bluefruit.Periph.setConnectCallback(connect_callback);
+  Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
 
   // Configure and Start the Device Information Service
   Serial.println("Configuring the Device Information Service");
@@ -143,8 +145,11 @@ void setup_feetback(void)
 
 void connect_callback(uint16_t conn_handle)
 {
+    // Get the reference to current connection
+  BLEConnection* connection = Bluefruit.Connection(conn_handle);
+
   char central_name[32] = { 0 };
-  Bluefruit.Gap.getPeerName(conn_handle, central_name, sizeof(central_name));
+  connection->getPeerName(central_name, sizeof(central_name));
 
   Serial.print("Connected to ");
   Serial.println(central_name);
@@ -164,7 +169,7 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
   Serial.println("Advertising!");
 }
 
-void cccd_callback(BLECharacteristic& chr, uint16_t cccd_value)
+void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_value)
 {
   // Display the raw request packet
   Serial.print("CCCD Updated: ");
@@ -174,8 +179,8 @@ void cccd_callback(BLECharacteristic& chr, uint16_t cccd_value)
 
   // Check the characteristic this CCCD update is associated with in case
   // this handler is used for multiple CCCD records.
-  if (chr.uuid == ftb_data.uuid) {
-    if (chr.notifyEnabled()) {
+  if (chr->uuid == ftb_data.uuid) {
+    if (chr->notifyEnabled(conn_hdl)) {
       Serial.println("Feetback Measurement 'Notify' enabled");
     } else {
       Serial.println("Feetback Measurement 'Notify' disabled");
@@ -183,8 +188,7 @@ void cccd_callback(BLECharacteristic& chr, uint16_t cccd_value)
   }
 }
 
-uint8_t x = 0;
-uint8_t y = 0;
+uint16_t offset = 0;
 uint16_t val = 0xfeba;
 
 void loop()
@@ -192,8 +196,11 @@ void loop()
   digitalToggle(LED_RED);
 
   if ( Bluefruit.connected() ) {
-    val = val << 1 | (val & 0x8000) >> 15;
-    feet_t feetdata = { x++, y--, val };
+    feet_t feetdata;
+    for (int i = 0; i < (sizeof(feetdata) / sizeof(feetdata.data[0])); i++) {
+      feetdata.data[i] = { offset++ % 956, val };
+      //val = val << 1 | (val & 0x8000) >> 15;
+    }
 
     // Note: We use .notify instead of .write!
     // If it is connected but CCCD is not enabled
