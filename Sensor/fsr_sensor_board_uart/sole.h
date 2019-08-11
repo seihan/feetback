@@ -1,5 +1,5 @@
 #pragma once
-const byte alloff = 0b01000000;
+const byte alloff = 0x40;
 
 int select_adc(int adc_idx) {
   if (adc_idx < 32) {
@@ -42,7 +42,7 @@ int read_sole(uint16_t * values)
       if (sole[row].dc_pin[col] != -1) {
         int adc_pin = select_adc(sole[row].adc_pin);
         values[k++] = read_pin(adc_pin, sole[row].dc_pin[col]);
-        delayMicroseconds(5);
+        delayMicroseconds(12);
       }
     }
   }
