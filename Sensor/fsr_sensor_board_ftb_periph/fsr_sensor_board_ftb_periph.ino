@@ -12,9 +12,7 @@ BLEBas blebas;    // BAS (Battery Service) helper class instance
 
 #include <SPI.h>
 
-//SPISettings settings(20000000, MSBFIRST, SPI_MODE0);
-
-#define HWFC  true
+//#define HWFC  true
 #define MAX_VALUES 25
 #define MEASURED_VALUES 956
 
@@ -46,7 +44,6 @@ void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_valu
 void setup()
 {
   Serial.begin(115200);
-  while ( !Serial ) delay(10);   // for nrf52840 with native usb
 
   Serial.println("FEETBACK Service Test");
   Serial.println("-----------------------\n");
@@ -55,10 +52,10 @@ void setup()
   Serial.println("Initialise the nRF52 module");
   Bluefruit.begin();
 
- // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
+  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
   Bluefruit.setTxPower(4);
-  
-   // Set the advertised device name (keep it short!)
+
+  // Set the advertised device name (keep it short!)
   Serial.println("Setting Device Name to 'FEETBACK Prph'");
   Bluefruit.setName("FEETBACK Prph");
 
@@ -69,7 +66,7 @@ void setup()
   // Configure and Start the Device Information Service
   Serial.println("Configuring the Device Information Service");
   bledis.setManufacturer("Hermann Elektro");
-  bledis.setModel("Feetback Seeed");
+  bledis.setModel("Feetback");
   bledis.begin();
 
   // Start the BLE Battery Service and set it to 100%
@@ -88,7 +85,7 @@ void setup()
 
   Serial.println("Ready Player One!!!");
   Serial.println("\nAdvertising");
-  
+
   Serial.print("Message size (bytes): ");
   Serial.println(sizeof(msg));
   digitalWrite(LED2_PIN, HIGH);
@@ -160,7 +157,7 @@ void setup_feetback(void)
 
 void connect_callback(uint16_t conn_handle)
 {
-    // Get the reference to current connection
+  // Get the reference to current connection
   BLEConnection* connection = Bluefruit.Connection(conn_handle);
 
   char central_name[32] = { 0 };
@@ -214,7 +211,7 @@ void loop()
   msg.length = MAX_VALUES;
   nval = 0;
   for (const measure_t& val : top) {
-     msg.data[nval++] = val;
+    msg.data[nval++] = val;
   }
 
   if ( Bluefruit.connected() ) {
