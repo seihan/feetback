@@ -8,7 +8,7 @@
 
 #include "protocol.h"
 #include "toplist.h"
-#include "sole_fsr956_feather.h"
+#include "sole_fsr956_bl652.h"
 #include "sole.h"
 
 struct message_t msg;

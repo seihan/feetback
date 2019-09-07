@@ -8,6 +8,11 @@ const int MuxADC_PIN = 16;
 const int ADC_PINS[ ] = {A0, A1, A2, A4, A5};
 const int DC_PINS[ ] = {7, 11, 18, 22, 27, 28, 29};
 
+struct line {
+  int adc_pin;
+  int dc_pin [COLUMNS];
+};
+
 struct line sole[] = {
   {  0, { -1, -1, -1, -1, -1, -1, -1,  4,  5,  6,  7,  8,  9, 10, -1, -1, -1, -1, -1, -1, -1}}, // 1
   {  1, { -1, -1, -1, -1, -1, -1,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, -1, -1, -1, -1, -1}}, // 2

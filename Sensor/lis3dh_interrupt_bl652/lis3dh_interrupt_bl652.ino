@@ -27,9 +27,10 @@ Adafruit_LIS3DH lis = Adafruit_LIS3DH();
 
 // Interrupt
 const byte interruptPin = 0;
-volatile byte state = HIGH;
+//volatile byte state = HIGH;
 const long countdown = 5000; //ms
 unsigned long last = 0;
+  bool state = true;
 
 void setup(void) {
   pinMode(LED_BLUE, OUTPUT);
@@ -72,12 +73,17 @@ void loop() {
   unsigned long now = millis();
   if (now - last >= countdown) {
     last = now;
+    state = true;
     Serial.println("Going to sleep...");
+    digitalWrite(LED_BLUE, LOW);
     // Request CPU to enter low-power mode until an event/interrupt occurs
     //waitForEvent();
     //NRF_POWER->SYSTEMOFF = 1;
-    digitalWrite(LED_BLUE, LOW);
-    sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
+    //sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
+    //__WFI();
+    while (state) {
+      sd_power_system_off();
+    }
   }
 }
 
@@ -85,6 +91,6 @@ void loop() {
 void blink() {
   digitalWrite(LED_BLUE, HIGH);
   Serial.println("Interrupt");
-  state = !state;
+  state = false;
   last = millis();
 }
