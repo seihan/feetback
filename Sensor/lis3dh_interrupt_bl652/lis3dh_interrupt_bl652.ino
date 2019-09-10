@@ -30,12 +30,12 @@ const byte interruptPin = 0;
 //volatile byte state = HIGH;
 const long countdown = 5000; //ms
 unsigned long last = 0;
-  bool state = true;
+bool state = true;
 
 void setup(void) {
   pinMode(LED_BLUE, OUTPUT);
   pinMode(interruptPin, INPUT_PULLDOWN);
-  attachInterrupt(digitalPinToInterrupt(interruptPin), blink, RISING);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), blink, FALLING);
   Serial.begin(115200);
   Serial.println("Adafruit LIS3DH Tap Test!");
 
@@ -75,15 +75,19 @@ void loop() {
     last = now;
     state = true;
     Serial.println("Going to sleep...");
+    Serial.flush();
     digitalWrite(LED_BLUE, LOW);
     // Request CPU to enter low-power mode until an event/interrupt occurs
-    //waitForEvent();
+    waitForEvent();
     //NRF_POWER->SYSTEMOFF = 1;
     //sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
-    //__WFI();
-    while (state) {
-      sd_power_system_off();
-    }
+    //    __WFI();
+    suspendLoop();
+    sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
+    sd_app_evt_wait();
+    /*  while (state) {
+        sd_power_system_off();
+      }*/
   }
 }
 
@@ -91,6 +95,8 @@ void loop() {
 void blink() {
   digitalWrite(LED_BLUE, HIGH);
   Serial.println("Interrupt");
+  Serial.flush();
   state = false;
   last = millis();
+  resumeLoop();
 }
