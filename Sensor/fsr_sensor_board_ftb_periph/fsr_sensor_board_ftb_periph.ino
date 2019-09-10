@@ -2,9 +2,12 @@
 
 const uint8_t feetback_service_uuid[16]   = { "FEETBACKSERVICE" }; // 15 chars + '\0' '00454349-5652-4553-4B43-414254454546'
 const uint8_t feetback_char_data_uuid[16] = { "FEETBACK___DATA" }; // '00415441-445F-5F5F-4B43-414254454546'
+const uint8_t feetback_char_bala_uuid[16] = { "FEETBACKBALANCE" }; // '00415445-4D5F-5F5F-4B43-414254454546'
 const uint8_t feetback_char_meta_uuid[16] = { "FEETBACK___META" }; // '00415445-4D5F-5F5F-4B43-414254454546'
+
 BLEService        feetback = BLEService(BLEUuid(feetback_service_uuid));
 BLECharacteristic ftb_data = BLECharacteristic(BLEUuid(feetback_char_data_uuid));
+BLECharacteristic ftb_bala = BLECharacteristic(BLEUuid(feetback_char_bala_uuid));
 BLECharacteristic ftb_meta = BLECharacteristic(BLEUuid(feetback_char_meta_uuid));
 
 BLEDis bledis;    // DIS (Device Information Service) helper class instance
@@ -18,10 +21,12 @@ BLEBas blebas;    // BAS (Battery Service) helper class instance
 
 #include "protocol.h"
 #include "toplist.h"
-#include "sole_fsr956_feather.h"
+//#include "sole_fsr956_feather.h"
+#include "sole_fsr956_bl652.h"
 #include "sole.h"
 
 struct message_t msg;
+uint16_t bala[ 2 ];
 uint16_t data[MEASURED_VALUES];
 const int LED2_PIN = 19;
 
@@ -146,6 +151,16 @@ void setup_feetback(void)
   ftb_data.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
   ftb_data.begin();
 
+  // Configure the Feetback Balance characteristic
+  // Properties = Notify
+  // B0   = UINT16 - Front
+  // B1   = UINT16 - Rear
+  ftb_bala.setProperties(CHR_PROPS_NOTIFY);
+  ftb_bala.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+  ftb_bala.setFixedLen(sizeof(msg.bala));
+  ftb_bala.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
+  ftb_bala.begin();
+
   //  feetback sensor location value is 8 bit
   //  static const char* location_names[] = { "Left", "Right" };
   ftb_meta.setProperties(CHR_PROPS_READ);
@@ -198,6 +213,16 @@ void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_valu
       Serial.println("Feetback Measurement 'Notify' disabled");
     }
   }
+
+  // Check the characteristic this CCCD update is associated with in case
+  // this handler is used for multiple CCCD records.
+  if (chr->uuid == ftb_bala.uuid) {
+    if (chr->notifyEnabled(conn_hdl)) {
+      Serial.println("Feetback Balance 'Notify' enabled");
+    } else {
+      Serial.println("Feetback Balance 'Notify' disabled");
+    }
+  }
 }
 
 void loop()
@@ -214,12 +239,17 @@ void loop()
     msg.data[nval++] = val;
   }
 
+  msg.bala[0] = {30000, 12345};
+
   if ( Bluefruit.connected() ) {
     // Note: We use .notify instead of .write!
     // If it is connected but CCCD is not enabled
     // The characteristic's value is still updated although notification is not sent
     // Message header and length are not actuallly required for this characteristic
     if ( ! ftb_data.notify(msg.data, sizeof(msg.data)) ) {
+      Serial.println("ERROR: Notify not set in the CCCD or not connected!");
+    }
+    if ( ! ftb_bala.notify(msg.bala, sizeof(msg.bala)) ) {
       Serial.println("ERROR: Notify not set in the CCCD or not connected!");
     }
   }
