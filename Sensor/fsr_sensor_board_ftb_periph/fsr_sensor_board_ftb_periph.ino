@@ -49,7 +49,6 @@ void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_valu
 void setup()
 {
   Serial.begin(115200);
-
   Serial.println("FEETBACK Service Test");
   Serial.println("-----------------------\n");
 
@@ -235,8 +234,16 @@ void loop()
   }
   msg.length = MAX_VALUES;
   nval = 0;
+  for (uint16_t& val : balance) val = 0;
   for (const measure_t& val : top) {
-    msg.data[nval++] = val;
+    msg.data[nval++] = val; // add top values to payload
+    if ( msg.data[nval - 1].offset < 428 ) { // sum rear values to balance
+      balance[ 0 ] += msg.data[nval - 1].value;
+      if ( (UINT_LEAST16_MAX - balance[ 0 ]) < 0 ) balance[ 0 ] = UINT_LEAST16_MAX;
+    } else {                                // sum front values to balance
+      balance[ 1 ] += msg.data[nval - 1].value;
+      if ( (UINT_LEAST16_MAX - balance[ 1 ]) < 0 ) balance[ 1 ] = UINT_LEAST16_MAX;
+    }
   }
 
   if ( Bluefruit.connected() ) {
