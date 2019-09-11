@@ -6,7 +6,7 @@ const int COLUMNS = 21;
 const int MuxDC_PIN = 15;
 const int MuxADC_PIN = 16;
 const int ADC_PINS[ ] = {A0, A1, A2, A3, A6};
-const int DC_PINS[ ] = {7, 11, 18, 22, 27, 28, 29};
+const int DC_PINS[ ] = {17, 11, 18, 22, 13, 14, 20};
 
 struct line {
   int adc_pin;
