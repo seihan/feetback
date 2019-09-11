@@ -2,7 +2,7 @@
 
 const uint8_t feetback_service_uuid[16]   = { "FEETBACKSERVICE" }; // 15 chars + '\0' '00454349-5652-4553-4B43-414254454546'
 const uint8_t feetback_char_data_uuid[16] = { "FEETBACK___DATA" }; // '00415441-445F-5F5F-4B43-414254454546'
-const uint8_t feetback_char_bala_uuid[16] = { "FEETBACKBALANCE" }; // '00415445-4D5F-5F5F-4B43-414254454546'
+const uint8_t feetback_char_bala_uuid[16] = { "FEETBACKBALANCE" }; // '0045434E-414C-4142-4B43-414254454546'
 const uint8_t feetback_char_meta_uuid[16] = { "FEETBACK___META" }; // '00415445-4D5F-5F5F-4B43-414254454546'
 
 BLEService        feetback = BLEService(BLEUuid(feetback_service_uuid));
@@ -26,9 +26,9 @@ BLEBas blebas;    // BAS (Battery Service) helper class instance
 #include "sole.h"
 
 struct message_t msg;
-uint16_t bala[ 2 ];
 uint16_t data[MEASURED_VALUES];
 const int LED2_PIN = 19;
+uint16_t balance[ 2 ] = { 0, 0 };
 
 struct smaller_measurement {
   bool operator()(measure_t& e, measure_t& other) {
@@ -157,7 +157,7 @@ void setup_feetback(void)
   // B1   = UINT16 - Rear
   ftb_bala.setProperties(CHR_PROPS_NOTIFY);
   ftb_bala.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
-  ftb_bala.setFixedLen(sizeof(msg.bala));
+  ftb_bala.setFixedLen(sizeof(balance));
   ftb_bala.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
   ftb_bala.begin();
 
@@ -239,8 +239,6 @@ void loop()
     msg.data[nval++] = val;
   }
 
-  msg.bala[0] = {30000, 12345};
-
   if ( Bluefruit.connected() ) {
     // Note: We use .notify instead of .write!
     // If it is connected but CCCD is not enabled
@@ -249,7 +247,7 @@ void loop()
     if ( ! ftb_data.notify(msg.data, sizeof(msg.data)) ) {
       Serial.println("ERROR: Notify not set in the CCCD or not connected!");
     }
-    if ( ! ftb_bala.notify(msg.bala, sizeof(msg.bala)) ) {
+    if ( ! ftb_bala.notify(balance, sizeof(balance)) ) {
       Serial.println("ERROR: Notify not set in the CCCD or not connected!");
     }
   }
