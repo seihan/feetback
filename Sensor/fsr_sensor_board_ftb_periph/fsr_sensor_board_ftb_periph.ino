@@ -11,23 +11,24 @@ BLECharacteristic ftb_bala = BLECharacteristic(BLEUuid(feetback_char_bala_uuid))
 BLECharacteristic ftb_meta = BLECharacteristic(BLEUuid(feetback_char_meta_uuid));
 
 BLEDis bledis;    // DIS (Device Information Service) helper class instance
-BLEBas blebas;    // BAS (Battery Service) helper class instance
+//BLEBas blebas;    // BAS (Battery Service) helper class instance
 
 #include <SPI.h>
 
 //#define HWFC  true
 #define MAX_VALUES 25
 #define MEASURED_VALUES 956
+#define WHITE_NOISE 100
 
 #include "protocol.h"
 #include "toplist.h"
-//#include "sole_fsr956_feather.h"
-#include "sole_fsr956_bl652.h"
+#include "sole_fsr956_feather.h"
+//#include "sole_fsr956_bl652.h"
 #include "sole.h"
 
 struct message_t msg;
 uint16_t data[MEASURED_VALUES];
-const int LED2_PIN = 19;
+//const int LED2_PIN = 19;
 uint16_t balance[ 2 ] = { 0, 0 };
 
 struct smaller_measurement {
@@ -75,8 +76,8 @@ void setup()
 
   // Start the BLE Battery Service and set it to 100%
   Serial.println("Configuring the Battery Service");
-  blebas.begin();
-  blebas.write(100);
+  //  blebas.begin();
+  //  blebas.write(100);
 
   // Setup the Feetback service using
   // BLEService and BLECharacteristic classes
@@ -92,7 +93,7 @@ void setup()
 
   Serial.print("Message size (bytes): ");
   Serial.println(sizeof(msg));
-  digitalWrite(LED2_PIN, HIGH);
+  //  digitalWrite(LED2_PIN, HIGH);
   analogReference(AR_INTERNAL_1_2);
   analogReadResolution(14);
   pinMode(MuxDC_PIN, OUTPUT);
@@ -237,12 +238,14 @@ void loop()
   for (uint16_t& val : balance) val = 0;
   for (const measure_t& val : top) {
     msg.data[nval++] = val; // add top values to payload
-    if ( msg.data[nval - 1].offset < 428 ) { // sum rear values to balance
-      balance[ 0 ] += msg.data[nval - 1].value;
-      if ( (UINT_LEAST16_MAX - balance[ 0 ]) < 0 ) balance[ 0 ] = UINT_LEAST16_MAX;
-    } else {                                // sum front values to balance
-      balance[ 1 ] += msg.data[nval - 1].value;
-      if ( (UINT_LEAST16_MAX - balance[ 1 ]) < 0 ) balance[ 1 ] = UINT_LEAST16_MAX;
+    if ( msg.data[nval - 1].value > WHITE_NOISE ) {
+      if ( msg.data[nval - 1].offset < 428 ) { // sum rear values to balance
+        balance[ 0 ] += msg.data[nval - 1].value;
+        if ( (UINT_LEAST16_MAX - balance[ 0 ]) < 0 ) balance[ 0 ] = UINT_LEAST16_MAX;
+      } else {                                // sum front values to balance
+        balance[ 1 ] += msg.data[nval - 1].value;
+        if ( (UINT_LEAST16_MAX - balance[ 1 ]) < 0 ) balance[ 1 ] = UINT_LEAST16_MAX;
+      }
     }
   }
 
