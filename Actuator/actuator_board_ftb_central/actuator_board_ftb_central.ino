@@ -11,15 +11,38 @@ BLEClientService        feetback = BLEClientService(BLEUuid(feetback_service_uui
 BLEClientCharacteristic ftb_bala = BLEClientCharacteristic(BLEUuid(feetback_char_bala_uuid));
 BLEClientCharacteristic ftb_meta = BLEClientCharacteristic(BLEUuid(feetback_char_meta_uuid));
 
+#define RESOLUTION 10
 const int outputPins[ 4 ] = { 28, 29, 30, 31 };
 uint16_t balance[ 2 ] = { 0, 0 };
+uint16_t pwmvalues[ 2 ] = { 0, 0 };
+// functio prototypes
+void nfc_to_gpio();
+void intro();
 
 void setup() {
-  for (int i = 0; i < 4; i++) {
+  nfc_to_gpio();
+  // configure  PWM
+  HwPWM0.addPin( 28 );
+  HwPWM1.addPin( 29 );
+
+  // Enable PWM modules with 15-bit resolutions(max) but different clock div
+  HwPWM0.begin();
+  HwPWM0.setResolution(RESOLUTION);
+  HwPWM0.setClockDiv(PWM_PRESCALER_PRESCALER_DIV_128); // freq = 16MHz
+  HwPWM0.writePin(28, 0, false);
+
+  HwPWM1.begin();
+  HwPWM1.setResolution(RESOLUTION);
+  HwPWM1.setClockDiv(PWM_PRESCALER_PRESCALER_DIV_128); // freq = 125kHz
+  HwPWM1.writePin(29, 0, false);
+
+  // turn off the leaving output pins
+  for (int i = 2; i < 4; i++) {
     pinMode(outputPins[ i ], OUTPUT);
-    analogWrite(outputPins[ i ], 0);
+    digitalWrite(outputPins[ i ], LOW);
   }
 
+  // configure Serial
   Serial.begin(115200);
   Serial.println("FEETBACK Client Test");
   Serial.println("--------------------------------------\n");
@@ -61,13 +84,67 @@ void setup() {
   Bluefruit.Scanner.filterUuid(feetback.uuid);
   Bluefruit.Scanner.useActiveScan(false);
   Bluefruit.Scanner.start(0);                   // // 0 = Don't stop scanning after n seconds
+  intro();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  if ( Serial.available() > 0 ) {
+    char input = Serial.read();
+    switch ( input ) {
+      case 'u' :
+        Serial.print("Up, new PWMvalue = ");
+        for (int i = 0; i < 2; i++) {
+          pwmvalues[i] += 100;
+          if ( pwmvalues[i] > bit(RESOLUTION) - 1 ) pwmvalues[i] = bit(RESOLUTION) - 1;
+        }
+        Serial.println(pwmvalues[0]);
+        HwPWM0.writePin(28, pwmvalues[0], false);
+        HwPWM1.writePin(29, pwmvalues[1], false);
+        break;
+      case 'd' :
+        Serial.print("Down, new PWMvalue = ");
+        for (int i = 0; i < 2; i++) {
+          pwmvalues[i] -= 100;
+          if ( pwmvalues[i] >= UINT_LEAST16_MAX - 97 ) pwmvalues[i] = 0;
+        }
+        Serial.println(pwmvalues[0]);
+        HwPWM0.writePin(28, pwmvalues[0], false);
+        HwPWM1.writePin(29, pwmvalues[1], false);
+        break;
+      default :
+        break;
+    }
+  }
+}
+
+void nfc_to_gpio() {
+  Serial.println("Bluefruit52 NFC to GPIO Pin Config");
+  Serial.println("----------------------------------\n");
+  if ((NRF_UICR->NFCPINS & UICR_NFCPINS_PROTECT_Msk) == (UICR_NFCPINS_PROTECT_NFC << UICR_NFCPINS_PROTECT_Pos)) {
+    Serial.println("Fix NFC pins");
+    NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Wen << NVMC_CONFIG_WEN_Pos;
+    while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+    NRF_UICR->NFCPINS &= ~UICR_NFCPINS_PROTECT_Msk;
+    while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+    NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Ren << NVMC_CONFIG_WEN_Pos;
+    while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
+    Serial.println("Done");
+    delay(500);
+    NVIC_SystemReset();
+  }
 
 }
 
+void intro() {
+  for (int i = 0; i < 3; i++); {
+    HwPWM0.writePin(28, bit(RESOLUTION) - 1, false);
+    HwPWM1.writePin(29, bit(RESOLUTION) - 1, false);
+    delay(500);
+    HwPWM0.writePin(28, 0, false);
+    HwPWM1.writePin(29, 0, false);
+    delay(500);
+  }
+}
 /**
    Callback invoked when scanner pick up an advertising data
    @param report Structural advertising data
@@ -156,6 +233,7 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
   (void) reason;
 
   Serial.print("Disconnected, reason = 0x"); Serial.println(reason, HEX);
+  intro();
 }
 
 /**
@@ -176,14 +254,23 @@ void feetback_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint1
     Serial.println(")");
     return;
   }
-  
+
   Serial.print("FEETBACK Balance: ");
 
-//  uint16_t value;
   memcpy(&balance[0], data, 2);
   memcpy(&balance[1], data + 2, 2);
 
   Serial.print(balance[0]);
   Serial.print("\t");
   Serial.println(balance[1]);
+
+  for (int i = 0; i < 2; i++) {
+    pwmvalues[i] = constrain( balance[i], 0, UINT_LEAST16_MAX);
+    pwmvalues[i] = map( pwmvalues[i], 0, UINT_LEAST16_MAX, 0, bit(RESOLUTION) - 1 );
+  }
+  Serial.print(pwmvalues[0]);
+  Serial.print("\t");
+  Serial.println(pwmvalues[1]);
+  HwPWM0.writePin(28, pwmvalues[0], false);
+  HwPWM1.writePin(29, pwmvalues[1], false);
 }

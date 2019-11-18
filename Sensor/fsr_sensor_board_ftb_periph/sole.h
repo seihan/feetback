@@ -20,6 +20,7 @@ uint16_t read_pin(int adc_pin, int dc_idx) {
     digitalWrite(MuxDC_PIN, LOW);
     SPI.transfer( dc_idx );
     digitalWrite(MuxDC_PIN, HIGH);
+    uint16_t trash = analogRead(adc_pin);
     return analogRead(adc_pin);
   } else {
     // GPIO pin
@@ -28,6 +29,7 @@ uint16_t read_pin(int adc_pin, int dc_idx) {
     digitalWrite(MuxDC_PIN, HIGH);
     dc_pin = DC_PINS[dc_idx - 32];
     digitalWrite(dc_pin, HIGH);
+    uint16_t trash = analogRead(adc_pin);
     uint16_t res = analogRead(adc_pin);
     digitalWrite(dc_pin, LOW);
     return res;
@@ -41,11 +43,10 @@ int read_sole(uint16_t * values)
     for (int col = 0; col < COLUMNS; col++) {
       if (sole[row].dc_pin[col] != -1) {
         int adc_pin = select_adc(sole[row].adc_pin);
-        delayMicroseconds(12);
         values[k++] = read_pin(adc_pin, sole[row].dc_pin[col]);
+        //        delayMicroseconds(200);
       }
     }
   }
-
   return k;
 }
