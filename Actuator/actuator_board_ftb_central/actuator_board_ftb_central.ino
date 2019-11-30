@@ -20,7 +20,7 @@ void nfc_to_gpio();
 void intro();
 
 void setup() {
-  nfc_to_gpio();
+  //  nfc_to_gpio();
   // configure  PWM
   HwPWM0.addPin( 28 );
   HwPWM1.addPin( 29 );
@@ -264,13 +264,13 @@ void feetback_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint1
   Serial.print("\t");
   Serial.println(balance[1]);
 
-  for (int i = 0; i < 2; i++) {
-    pwmvalues[i] = constrain( balance[i], 0, UINT_LEAST16_MAX);
-    pwmvalues[i] = map( pwmvalues[i], 0, UINT_LEAST16_MAX, 0, bit(RESOLUTION) - 1 );
-  }
-  Serial.print(pwmvalues[0]);
-  Serial.print("\t");
-  Serial.println(pwmvalues[1]);
-  HwPWM0.writePin(28, pwmvalues[0], false);
-  HwPWM1.writePin(29, pwmvalues[1], false);
+  //  for (int i = 0; i < 2; i++) {
+  //    pwmvalues[i] = constrain( balance[i], 0, UINT_LEAST16_MAX);
+  //    pwmvalues[i] = map( pwmvalues[i], 0, UINT_LEAST16_MAX, 0, bit(RESOLUTION) - 1 );
+  //  }
+  //  Serial.print(pwmvalues[0]);
+  //  Serial.print("\t");
+  //  Serial.println(pwmvalues[1]);
+  //  HwPWM0.writePin(28, pwmvalues[0], false);
+  //  HwPWM1.writePin(29, pwmvalues[1], false);
 }
