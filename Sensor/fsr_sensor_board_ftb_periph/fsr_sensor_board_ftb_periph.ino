@@ -30,6 +30,7 @@ struct message_t msg;
 uint16_t data[MEASURED_VALUES];
 //const int LED2_PIN = 19;
 uint16_t balance[ 2 ] = { 0, 0 };
+uint8_t counter = 0;
 
 struct smaller_measurement {
   bool operator()(measure_t& e, measure_t& other) {
@@ -38,6 +39,8 @@ struct smaller_measurement {
 };
 
 toplist<MAX_VALUES, measure_t, smaller_measurement> top;
+
+SoftwareTimer countTimer;
 
 // Advanced function prototypes
 void startAdv(void);
@@ -101,6 +104,18 @@ void setup()
   for (int i = 0; i < 7; i++) pinMode(DC_PINS[ i ], OUTPUT);
   for (int i = 0; i < 5; i++) pinMode(ADC_PINS[ i ], INPUT);
   SPI.begin();
+  countTimer.begin(1000, count_timer_callback);
+  // Start the timer
+  countTimer.start();
+
+}
+
+void count_timer_callback(TimerHandle_t xTimerID)
+{
+  // freeRTOS timer ID, ignored if not used
+  (void) xTimerID;
+  Serial.println(counter);
+  counter = 0;
 }
 
 void startAdv(void)
@@ -261,6 +276,6 @@ void loop()
       Serial.println("ERROR: Notify not set in the CCCD or not connected!");
     }
   }
-
+  counter++;
   // send_to_serial(&msg); // transmit values
 }
