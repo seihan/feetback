@@ -111,7 +111,7 @@ void setup()
   for (int i = 0; i < 5; i++) pinMode(ADC_PINS[ i ], INPUT);
   SPI.begin();
   msg.length = MAX_VALUES;
-  countTimer.begin(500, count_timer_callback);
+  countTimer.begin(1000, count_timer_callback);
   // Start the timer
   countTimer.start();
 
@@ -277,25 +277,25 @@ void loop()
 
   counter++;
 
-  if ( (balance[0] > 50000) || (balance[1] > 50000) && (counter == 2) ) {
+  if ( (balance[0] > 55000) || (balance[1] > 50000) && (counter == 4) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
     } else {
       send_ble_cmd(vib3);
     }
-  } else if ( (balance[0] > 30000) || (balance[1] > 30000) && (counter == 4) ) {
+  } else if ( (balance[0] > 30000) || (balance[1] > 30000) && (counter == 8) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
     } else {
       send_ble_cmd(vib3);
     }
-  } else if ( (balance[0] > 20000) || (balance[1] > 20000) && (counter == 6) ) {
+  } else if ( (balance[0] > 20000) || (balance[1] > 20000) && (counter == 12) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
     } else {
       send_ble_cmd(vib3);
     }
-  } else if ( (balance[0] > 5000) || (balance[1] > 5000) && (counter == 8) ) {
+  } else if ( (balance[0] > 5000) || (balance[1] > 5000) && (counter == 16) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
     } else {
