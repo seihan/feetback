@@ -20,16 +20,17 @@
 //#include "sole_fsr956_bl652.h"
 #include "sole.h"
 
-#define MAX_VALUES 25
+#define MAX_VALUES 50
 #define MEASURED_VALUES 956
-#define WHITE_NOISE 100
+#define WHITE_NOISE 200
 
 BLEClientService        d6 = BLEClientService(BLEUuid(0x190A));
 BLEClientCharacteristic d6_write = BLEClientCharacteristic(BLEUuid(0x0001));
 BLEClientCharacteristic d6_notif = BLEClientCharacteristic(BLEUuid(0x0002));
 
+bool debug = false;
 uint8_t dsd6_mac[ 6 ] = { 0xF6, 0x7B, 0xFA, 0xBD, 0x3A, 0xF1 };
-bool connecting = false;
+bool connecting = true;
 uint8_t counter = 0;
 const String vib = "AT+MOTOR=1\n";  // start vibration
 const String vib1 = "AT+MOTOR=11\n";  // 50ms vibration
@@ -37,9 +38,6 @@ const String vib2 = "AT+MOTOR=12\n";  // 100ms vibration
 const String vib3 = "AT+MOTOR=13\n";  // 150ms vibration
 const String sto = "AT+MOTOR=00\n"; // stop vibration
 const String bat = "AT+BATT0\n";    // get battery state %
-
-//const long vibIntervals[ 5 ] = { 200, 400, 600, 800, 1000 };
-bool letsvib = false;
 
 struct message_t msg;
 uint16_t data[MEASURED_VALUES];
@@ -57,9 +55,9 @@ SoftwareTimer countTimer;
 
 void setup()
 {
-  Serial.begin(115200);
-  Serial.println("Feetback Sensor");
-  Serial.println("---------------------\n");
+  if ( debug ) Serial.begin(115200);
+  if ( debug ) Serial.println("Feetback Sensor");
+  if ( debug ) Serial.println("---------------------\n");
 
   // Initialize Bluefruit with maximum connections as Peripheral = 0, Central = 1
   // SRAM usage required by SoftDevice will increase dramatically with number of connections
@@ -101,7 +99,7 @@ void setup()
   Bluefruit.Scanner.useActiveScan(true);        // Request scan response data
   Bluefruit.Scanner.start(0);                   // 0 = Don't stop scanning after n seconds
 
-  Serial.println("Scanning ...");
+  if ( debug ) Serial.println("Scanning ...");
 
   analogReference(AR_INTERNAL_1_2);
   analogReadResolution(14);
@@ -112,7 +110,6 @@ void setup()
   SPI.begin();
   msg.length = MAX_VALUES;
   countTimer.begin(1000, count_timer_callback);
-  // Start the timer
   countTimer.start();
 
 }
@@ -121,9 +118,9 @@ void count_timer_callback(TimerHandle_t xTimerID)
 {
   // freeRTOS timer ID, ignored if not used
   (void) xTimerID;
-  Serial.println(counter);
-  Serial.println(balance[0]);
-  Serial.println(balance[1]);
+  if ( debug ) Serial.println(counter);
+  if ( debug ) Serial.println(balance[0]);
+  if ( debug ) Serial.println(balance[1]);
   counter = 0;
 }
 
@@ -135,23 +132,22 @@ void scan_callback(ble_gap_evt_adv_report_t* report)
   // Display the timestamp and device address
   if (report->type.scan_response)
   {
-    Serial.printf("[SR%10d] Packet received from ", millis());
+    if ( debug ) Serial.printf("[SR%10d] Packet received from ", millis());
   }
   else
   {
-    Serial.printf("[ADV%9d] Packet received from ", millis());
+    if ( debug ) Serial.printf("[ADV%9d] Packet received from ", millis());
   }
 
   // MAC is in little endian --> print reverse
-  Serial.printBufferReverse(report->peer_addr.addr, 6, ':');
-  Serial.print("\n");
+  if ( debug ) Serial.printBufferReverse(report->peer_addr.addr, 6, ':');
+  if ( debug ) Serial.print("\n");
 
   for (int i = 0; i < 6; i++) {
-    if (report->peer_addr.addr[i] == dsd6_mac[i]) connecting = true;
-    else connecting = false;
+    if (report->peer_addr.addr[i] != dsd6_mac[i]) connecting = false;
   }
   if ( connecting ) {
-    Serial.println("Connecting to DS-D6 device...");
+    if ( debug ) Serial.println("Connecting to DS-D6 device...");
     Bluefruit.Central.connect(report);
   }
   else {
@@ -164,13 +160,13 @@ void scan_callback(ble_gap_evt_adv_report_t* report)
 
 void connect_callback(uint16_t conn_handle)
 {
-  Serial.println("Connected");
-  Serial.print("Discovering D6 Service ... ");
+  if ( debug ) Serial.println("Connected");
+  if ( debug ) Serial.print("Discovering D6 Service ... ");
 
   // If HRM is not found, disconnect and return
   if ( !d6.discover(conn_handle) )
   {
-    Serial.println("Found NONE");
+    if ( debug ) Serial.println("Found NONE");
 
     // disconnect since we couldn't find HRM service
     Bluefruit.disconnect(conn_handle);
@@ -178,38 +174,38 @@ void connect_callback(uint16_t conn_handle)
     return;
   }
   // Once FEETBACK service is found, we continue to discover its characteristic
-  Serial.println("Found it");
+  if ( debug ) Serial.println("Found it");
 
-  Serial.print("Discovering NOTIFY characteristic ... ");
+  if ( debug ) Serial.print("Discovering NOTIFY characteristic ... ");
   if ( !d6_notif.discover() )
   {
     // Measurement chr is mandatory, if it is not found (valid), then disconnect
-    Serial.println("not found !!!");
-    Serial.println("Notify characteristic is mandatory but not found");
+    if ( debug ) Serial.println("not found !!!");
+    if ( debug ) Serial.println("Notify characteristic is mandatory but not found");
     Bluefruit.disconnect(conn_handle);
     return;
   }
-  Serial.println("Found it");
+  if ( debug ) Serial.println("Found it");
 
   // Measurement is found, continue to look for option Body Sensor Location
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.body_sensor_location.xml
   // Body Sensor Location is optional, print out the location in text if present
-  Serial.print("Discovering WRITE characteristic ... ");
+  if ( debug ) Serial.print("Discovering WRITE characteristic ... ");
   if ( d6_write.discover() )
   {
-    Serial.println("Found it");
+    if ( debug ) Serial.println("Found it");
   } else
   {
-    Serial.println("Found NONE");
+    if ( debug ) Serial.println("Found NONE");
   }
 
   // Reaching here means we are ready to go, let's enable notification on measurement chr
   if ( d6_notif.enableNotify() )
   {
-    Serial.println("Ready to receive D6 Notify value");
+    if ( debug ) Serial.println("Ready to receive D6 Notify value");
   } else
   {
-    Serial.println("Couldn't enable notify for DSD6. Increase DEBUG LEVEL for troubleshooting.");
+    if ( debug ) Serial.println("Couldn't enable notify for DSD6. Increase DEBUG LEVEL for troubleshooting.");
   }
   Bluefruit.printInfo();
 }
@@ -224,15 +220,14 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
   (void) conn_handle;
   (void) reason;
 
-  Serial.print("Disconnected, reason = 0x"); Serial.println(reason, HEX);
+  if ( debug ) Serial.print("Disconnected, reason = 0x");
+  if ( debug ) Serial.println(reason, HEX);
 }
 
 void d6_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t len)
 {
-  char answer[len] = {};
-  memcpy(&answer, data, len);
   for (int i = 0; i < len; i++) {
-    Serial.print(answer[i]);
+    if ( debug ) Serial.print(data[i]);
   }
 }
 
@@ -302,44 +297,5 @@ void loop()
       send_ble_cmd(vib3);
     }
   }
-
-  /*
-    switch ( Serial.read() ) {
-      case 'v':
-        letsvib = true;
-        break;
-      case 's':
-        Serial.println("Stop");
-        letsvib = false;
-    //      send_ble_cmd(sto);
-        break;
-      case 'a':
-        alarm();
-        break;
-      case 'b':
-    //      send_ble_cmd(bat);
-        break;
-      case '=':
-        Serial.println("faster");
-    //      if ( vibInterval > 100 ) vibInterval -= 100;
-        break;
-      case '-':
-        Serial.println("-");
-    //      if ( vibInterval < 2000 ) vibInterval += 100;
-        break;
-      case 'n':
-    //      send_ble_cmd(vib1);
-        break;
-      case 'm':
-    //      send_ble_cmd(vib2);
-        break;
-      case ',':
-    //      send_ble_cmd(vib3);
-        break;
-      default:
-        break;
-    }
-  */
-
 
 }
