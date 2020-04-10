@@ -243,10 +243,6 @@ void loop()
 {
   Serial.println("Looping...");
   uint16_t nval = read_sole(data); // read values
-  for (int i = 0; i < MAX_VALUES; i++){
-    Serial.print(String(data[i]) + "\t");
-  }
-  Serial.println();
   top.clear();
   for (uint16_t i = 0; i != nval; i++) {
     top.add(measure_t{i, data[i]});
@@ -265,7 +261,7 @@ void loop()
       }
     }
   }
-
+  Serial.println(String(balance[0]) + "\t" + String(balance[1]));
   if ( Bluefruit.connected() ) {
     // Note: We use .notify instead of .write!
     // If it is connected but CCCD is not enabled
