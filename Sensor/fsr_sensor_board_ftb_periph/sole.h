@@ -42,8 +42,16 @@ int read_sole(uint16_t * values)
   for (int row = 0; row < ROWS; row++) {
     for (int col = 0; col < COLUMNS; col++) {
       if (sole[row].dc_pin[col] != -1) {
-        int adc_pin = select_adc(sole[row].adc_pin);
-        values[k++] = read_pin(adc_pin, sole[row].dc_pin[col]);
+        if ((row != 29) && (row != 57)) { // brokenlines
+          int adc_pin = select_adc(sole[row].adc_pin);
+          values[k++] = read_pin(adc_pin, sole[row].dc_pin[col]);
+          delayMicroseconds(20);
+        }
+        else {
+          int adc_pin = select_adc(sole[row].adc_pin);
+          values[k++] = 0; // read_pin(adc_pin, sole[row].dc_pin[col]);
+        }
+
         //        delayMicroseconds(200);
       }
     }

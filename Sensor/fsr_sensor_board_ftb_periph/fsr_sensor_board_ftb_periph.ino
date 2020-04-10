@@ -16,7 +16,7 @@ BLEDis bledis;    // DIS (Device Information Service) helper class instance
 #include <SPI.h>
 
 //#define HWFC  true
-#define MAX_VALUES 25
+#define MAX_VALUES 50
 #define MEASURED_VALUES 956
 #define WHITE_NOISE 100
 
