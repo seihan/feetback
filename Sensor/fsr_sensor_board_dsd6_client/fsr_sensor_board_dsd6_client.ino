@@ -51,8 +51,6 @@ struct smaller_measurement {
 
 toplist<MAX_VALUES, measure_t, smaller_measurement> top;
 
-SoftwareTimer countTimer;
-
 void setup()
 {
   if ( debug ) Serial.begin(115200);
@@ -109,19 +107,6 @@ void setup()
   for (int i = 0; i < 5; i++) pinMode(ADC_PINS[ i ], INPUT);
   SPI.begin();
   msg.length = MAX_VALUES;
-  countTimer.begin(1000, count_timer_callback);
-  countTimer.start();
-
-}
-
-void count_timer_callback(TimerHandle_t xTimerID)
-{
-  // freeRTOS timer ID, ignored if not used
-  (void) xTimerID;
-  if ( debug ) Serial.println(counter);
-  if ( debug ) Serial.println(balance[0]);
-  if ( debug ) Serial.println(balance[1]);
-  counter = 0;
 }
 
 void scan_callback(ble_gap_evt_adv_report_t* report)
@@ -161,6 +146,7 @@ void scan_callback(ble_gap_evt_adv_report_t* report)
 void connect_callback(uint16_t conn_handle)
 {
   if ( debug ) Serial.println("Connected");
+  send_ble_cmd(vib3);
   if ( debug ) Serial.print("Discovering D6 Service ... ");
 
   // If HRM is not found, disconnect and return
@@ -240,13 +226,6 @@ void send_ble_cmd(String cmd) {
   d6_write.write8(10);
 }
 
-void alarm() {
-  for (int i = 0; i < 10; i++) {
-    //    send_ble_cmd(vib3);
-    delay(250);
-  }
-}
-
 void loop()
 {
   uint16_t nval = read_sole(data); // read values
@@ -270,32 +249,31 @@ void loop()
     }
   }
 
-  counter++;
+  counter = ( counter +  1 ) % 16;
 
-  if ( (balance[0] > 55000) || (balance[1] > 50000) && (counter == 4) ) {
+  if ( (balance[0] == UINT_LEAST16_MAX) || (balance[1] == UINT_LEAST16_MAX) && (counter == 3) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
     } else {
       send_ble_cmd(vib3);
     }
-  } else if ( (balance[0] > 30000) || (balance[1] > 30000) && (counter == 8) ) {
+  } else if ( (balance[0] > 50000) || (balance[1] > 50000) && (counter == 7) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
     } else {
       send_ble_cmd(vib3);
     }
-  } else if ( (balance[0] > 20000) || (balance[1] > 20000) && (counter == 12) ) {
+  } else if ( (balance[0] > 30000) || (balance[1] > 30000) && (counter == 11) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
     } else {
       send_ble_cmd(vib3);
     }
-  } else if ( (balance[0] > 5000) || (balance[1] > 5000) && (counter == 16) ) {
+  } else if ( (balance[0] > 5000) || (balance[1] > 5000) && (counter == 15) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
     } else {
       send_ble_cmd(vib3);
     }
   }
-
 }

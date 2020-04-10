@@ -22,8 +22,8 @@ BLEDis bledis;    // DIS (Device Information Service) helper class instance
 
 #include "protocol.h"
 #include "toplist.h"
-#include "sole_fsr956_feather.h"
-//#include "sole_fsr956_bl652.h"
+//#include "sole_fsr956_feather.h"
+#include "sole_fsr956_bl652.h"
 #include "sole.h"
 
 struct message_t msg;
@@ -68,8 +68,8 @@ void setup()
   Bluefruit.setName("FEETBACK Prph");
 
   // Set the connect/disconnect callback handlers
-  Bluefruit.Periph.setConnectCallback(connect_callback);
-  Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
+  Bluefruit.setConnectCallback(connect_callback);
+  Bluefruit.setDisconnectCallback(disconnect_callback);
 
   // Configure and Start the Device Information Service
   Serial.println("Configuring the Device Information Service");
@@ -107,7 +107,7 @@ void setup()
   countTimer.begin(1000, count_timer_callback);
   // Start the timer
   countTimer.start();
-
+  msg.length = MAX_VALUES;
 }
 
 void count_timer_callback(TimerHandle_t xTimerID)
@@ -182,16 +182,15 @@ void setup_feetback(void)
   ftb_meta.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
   ftb_meta.setFixedLen(1);
   ftb_meta.begin();
-  ftb_meta.write8(1);    // Set the characteristic to 'Right' (1)
+//  ftb_meta.write8(1);    // Set the characteristic to 'Right' (1)
+  ftb_meta.write8(1);    // Set the characteristic to 'Left' (0)
 }
 
 void connect_callback(uint16_t conn_handle)
 {
   // Get the reference to current connection
-  BLEConnection* connection = Bluefruit.Connection(conn_handle);
-
   char central_name[32] = { 0 };
-  connection->getPeerName(central_name, sizeof(central_name));
+  Bluefruit.Gap.getPeerName(conn_handle, central_name, sizeof(central_name));
 
   Serial.print("Connected to ");
   Serial.println(central_name);
@@ -211,7 +210,7 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
   Serial.println("Advertising!");
 }
 
-void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_value)
+void cccd_callback(BLECharacteristic& chr, uint16_t cccd_value)
 {
   // Display the raw request packet
   Serial.print("CCCD Updated: ");
@@ -221,8 +220,8 @@ void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_valu
 
   // Check the characteristic this CCCD update is associated with in case
   // this handler is used for multiple CCCD records.
-  if (chr->uuid == ftb_data.uuid) {
-    if (chr->notifyEnabled(conn_hdl)) {
+  if (chr.uuid == ftb_data.uuid) {
+    if (chr.notifyEnabled()) {
       Serial.println("Feetback Measurement 'Notify' enabled");
     } else {
       Serial.println("Feetback Measurement 'Notify' disabled");
@@ -231,8 +230,8 @@ void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_valu
 
   // Check the characteristic this CCCD update is associated with in case
   // this handler is used for multiple CCCD records.
-  if (chr->uuid == ftb_bala.uuid) {
-    if (chr->notifyEnabled(conn_hdl)) {
+  if (chr.uuid == ftb_bala.uuid) {
+    if (chr.notifyEnabled()) {
       Serial.println("Feetback Balance 'Notify' enabled");
     } else {
       Serial.println("Feetback Balance 'Notify' disabled");
@@ -242,13 +241,16 @@ void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_valu
 
 void loop()
 {
+  Serial.println("Looping...");
   uint16_t nval = read_sole(data); // read values
-
+  for (int i = 0; i < MAX_VALUES; i++){
+    Serial.print(String(data[i]) + "\t");
+  }
+  Serial.println();
   top.clear();
   for (uint16_t i = 0; i != nval; i++) {
     top.add(measure_t{i, data[i]});
   }
-  msg.length = MAX_VALUES;
   nval = 0;
   for (uint16_t& val : balance) val = 0;
   for (const measure_t& val : top) {

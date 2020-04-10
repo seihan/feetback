@@ -11,47 +11,51 @@ BLEClientService        feetback = BLEClientService(BLEUuid(feetback_service_uui
 BLEClientCharacteristic ftb_bala = BLEClientCharacteristic(BLEUuid(feetback_char_bala_uuid));
 BLEClientCharacteristic ftb_meta = BLEClientCharacteristic(BLEUuid(feetback_char_meta_uuid));
 
-#define RESOLUTION 10
-const int outputPins[ 4 ] = { 28, 29, 30, 31 };
+#define RESOLUTION 10 // PWM
+const int outputPins[ 4 ] = { 2, 3, 4, 5 }; // MDBT42
+//const int outputPins[ 4 ] = { 28, 29, 30, 31 }; // BL652
 uint16_t balance[ 2 ] = { 0, 0 };
 uint16_t pwmvalues[ 2 ] = { 0, 0 };
-// functio prototypes
-void nfc_to_gpio();
+// function prototypes
 void intro();
+bool vibrate = false;
+
+SoftwareTimer vibTimer;
 
 void setup() {
-  //  nfc_to_gpio();
   // configure  PWM
-  HwPWM0.addPin( 28 );
-  HwPWM1.addPin( 29 );
+  HwPWM0.addPin(outputPins[0]);
+  HwPWM1.addPin(outputPins[1]);
 
   // Enable PWM modules with 15-bit resolutions(max) but different clock div
   HwPWM0.begin();
   HwPWM0.setResolution(RESOLUTION);
-  HwPWM0.setClockDiv(PWM_PRESCALER_PRESCALER_DIV_128); // freq = 16MHz
-  HwPWM0.writePin(28, 0, false);
+  HwPWM0.setClockDiv(PWM_PRESCALER_PRESCALER_DIV_128); // freq = 125kHz
+  HwPWM0.writePin(2, 0, false);
 
   HwPWM1.begin();
   HwPWM1.setResolution(RESOLUTION);
   HwPWM1.setClockDiv(PWM_PRESCALER_PRESCALER_DIV_128); // freq = 125kHz
-  HwPWM1.writePin(29, 0, false);
+  HwPWM1.writePin(3, 0, false);
 
+  vibTimer.begin(150, vib_timer_callback);
+  // Start the timer
+  vibTimer.start();
   // turn off the leaving output pins
   for (int i = 2; i < 4; i++) {
     pinMode(outputPins[ i ], OUTPUT);
     digitalWrite(outputPins[ i ], LOW);
   }
-
+  intro();
   // configure Serial
   Serial.begin(115200);
-  Serial.println("FEETBACK Client Test");
-  Serial.println("--------------------------------------\n");
-
+  Serial.println("FEETBACK Client");
+  Serial.println("------------------------------\n");
   // Initialize Bluefruit with maximum connections as Peripheral = 0, Central = 1
   // SRAM usage required by SoftDevice will increase dramatically with number of connections
-  Bluefruit.begin(0, 1);
+  Bluefruit.begin(0, 1);      
 
-  Bluefruit.setName("Ftb Actuator - Right");
+  Bluefruit.setName("Feetback Actuator - Leftside");
 
   // Initialize HRM client
   feetback.begin();
@@ -84,7 +88,6 @@ void setup() {
   Bluefruit.Scanner.filterUuid(feetback.uuid);
   Bluefruit.Scanner.useActiveScan(false);
   Bluefruit.Scanner.start(0);                   // // 0 = Don't stop scanning after n seconds
-  intro();
 }
 
 void loop() {
@@ -92,59 +95,30 @@ void loop() {
     char input = Serial.read();
     switch ( input ) {
       case 'u' :
-        Serial.print("Up, new PWMvalue = ");
+        Serial.print("Up, new pwm value = ");
         for (int i = 0; i < 2; i++) {
           pwmvalues[i] += 100;
           if ( pwmvalues[i] > bit(RESOLUTION) - 1 ) pwmvalues[i] = bit(RESOLUTION) - 1;
         }
         Serial.println(pwmvalues[0]);
-        HwPWM0.writePin(28, pwmvalues[0], false);
-        HwPWM1.writePin(29, pwmvalues[1], false);
         break;
       case 'd' :
-        Serial.print("Down, new PWMvalue = ");
+        Serial.print("Down, new pwm value = ");
         for (int i = 0; i < 2; i++) {
           pwmvalues[i] -= 100;
           if ( pwmvalues[i] >= UINT_LEAST16_MAX - 97 ) pwmvalues[i] = 0;
         }
         Serial.println(pwmvalues[0]);
-        HwPWM0.writePin(28, pwmvalues[0], false);
-        HwPWM1.writePin(29, pwmvalues[1], false);
         break;
       default :
         break;
     }
   }
+  HwPWM0.writePin(outputPins[0], pwmvalues[0], false);
+  if (vibrate) HwPWM1.writePin(outputPins[1], pwmvalues[1], false);
+  if (!vibrate) HwPWM1.writePin(outputPins[1], 0, false);
 }
 
-void nfc_to_gpio() {
-  Serial.println("Bluefruit52 NFC to GPIO Pin Config");
-  Serial.println("----------------------------------\n");
-  if ((NRF_UICR->NFCPINS & UICR_NFCPINS_PROTECT_Msk) == (UICR_NFCPINS_PROTECT_NFC << UICR_NFCPINS_PROTECT_Pos)) {
-    Serial.println("Fix NFC pins");
-    NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Wen << NVMC_CONFIG_WEN_Pos;
-    while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
-    NRF_UICR->NFCPINS &= ~UICR_NFCPINS_PROTECT_Msk;
-    while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
-    NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Ren << NVMC_CONFIG_WEN_Pos;
-    while (NRF_NVMC->READY == NVMC_READY_READY_Busy);
-    Serial.println("Done");
-    delay(500);
-    NVIC_SystemReset();
-  }
-
-}
-
-void intro() {
-  for (int i = 0; i < 3; i++); {
-    HwPWM0.writePin(28, bit(RESOLUTION) - 1, false);
-    HwPWM1.writePin(29, bit(RESOLUTION) - 1, false);
-    delay(500);
-    HwPWM0.writePin(28, 0, false);
-    HwPWM1.writePin(29, 0, false);
-    delay(500);
-  }
-}
 /**
    Callback invoked when scanner pick up an advertising data
    @param report Structural advertising data
@@ -172,21 +146,19 @@ void connect_callback(uint16_t conn_handle)
     Serial.println("Found NONE");
 
     // disconnect since we couldn't find HRM service
-    Bluefruit.disconnect(conn_handle);
+    Bluefruit.Central.disconnect(conn_handle);
 
     return;
   }
 
   // Once FEETBACK service is found, we continue to discover its characteristic
-  Serial.println("Found it");
-
   Serial.print("Discovering Balance characteristic ... ");
   if ( !ftb_bala.discover() )
   {
     // Measurement chr is mandatory, if it is not found (valid), then disconnect
     Serial.println("not found !!!");
     Serial.println("Balance characteristic is mandatory but not found");
-    Bluefruit.disconnect(conn_handle);
+    Bluefruit.Central.disconnect(conn_handle);
     return;
   }
   Serial.println("Found it");
@@ -204,12 +176,16 @@ void connect_callback(uint16_t conn_handle)
 
     // Read 8-bit BSLC value from peripheral
     uint8_t loc_value = ftb_meta.read8();
-
+    if ( loc_value != 0 ) {
+      Serial.println("Wrong side! Disconnect ...");
+      Bluefruit.Central.disconnect(conn_handle);
+    }
     Serial.print("Body Location Sensor: ");
     Serial.println(location_names[loc_value]);
   } else
   {
     Serial.println("Found NONE");
+    Bluefruit.Central.disconnect(conn_handle);
   }
 
   // Reaching here means we are ready to go, let's enable notification on measurement chr
@@ -225,14 +201,14 @@ void connect_callback(uint16_t conn_handle)
 /**
    Callback invoked when a connection is dropped
    @param conn_handle
-   @param reason is a BLE_HCI_STATUS_CODE which can be found in ble_hci.h
+   @param reason
 */
 void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 {
   (void) conn_handle;
   (void) reason;
 
-  Serial.print("Disconnected, reason = 0x"); Serial.println(reason, HEX);
+  Serial.println("Disconnected");
   intro();
 }
 
@@ -264,13 +240,31 @@ void feetback_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint1
   Serial.print("\t");
   Serial.println(balance[1]);
 
-  //  for (int i = 0; i < 2; i++) {
-  //    pwmvalues[i] = constrain( balance[i], 0, UINT_LEAST16_MAX);
-  //    pwmvalues[i] = map( pwmvalues[i], 0, UINT_LEAST16_MAX, 0, bit(RESOLUTION) - 1 );
-  //  }
-  //  Serial.print(pwmvalues[0]);
-  //  Serial.print("\t");
-  //  Serial.println(pwmvalues[1]);
-  //  HwPWM0.writePin(28, pwmvalues[0], false);
-  //  HwPWM1.writePin(29, pwmvalues[1], false);
+  for (int i = 0; i < 2; i++) {
+    pwmvalues[i] = constrain( balance[i], 0, UINT_LEAST16_MAX);
+    pwmvalues[i] = map( pwmvalues[i], 0, UINT_LEAST16_MAX, 0, bit(RESOLUTION) - 1 );
+  }
+  Serial.print(pwmvalues[0]);
+  Serial.print("\t");
+  Serial.println(pwmvalues[1]);
+  HwPWM0.writePin(outputPins[0], pwmvalues[0], false);
+  if (vibrate) HwPWM1.writePin(outputPins[1], pwmvalues[1], false);
+  if (!vibrate) HwPWM1.writePin(outputPins[1], 0, false);
+}
+
+void intro() {
+  for (int i = 0; i < 3; i++); {
+    HwPWM0.writePin(outputPins[0], bit(RESOLUTION) - 1, false);
+    HwPWM1.writePin(outputPins[1], bit(RESOLUTION) - 1, false);
+    delay(300);
+    HwPWM0.writePin(outputPins[0], 0, false);
+    HwPWM1.writePin(outputPins[1], 0, false);
+    delay(300);
+  }
+}
+void vib_timer_callback(TimerHandle_t xTimerID)
+{
+  // freeRTOS timer ID, ignored if not used
+  (void) xTimerID;
+  vibrate = !vibrate;
 }
