@@ -12,23 +12,23 @@
   any redistribution
 *********************************************************************/
 
+#define MAX_VALUES 50
+#define MEASURED_VALUES 956
+#define WHITE_NOISE 200
+ 
 #include <bluefruit.h>
 #include <SPI.h>
 #include "protocol.h"
 #include "toplist.h"
-#include "sole_fsr956_feather.h"
-//#include "sole_fsr956_bl652.h"
+//#include "sole_fsr956_feather.h"
+#include "sole_fsr956_bl652.h"
 #include "sole.h"
-
-#define MAX_VALUES 50
-#define MEASURED_VALUES 956
-#define WHITE_NOISE 200
 
 BLEClientService        d6 = BLEClientService(BLEUuid(0x190A));
 BLEClientCharacteristic d6_write = BLEClientCharacteristic(BLEUuid(0x0001));
 BLEClientCharacteristic d6_notif = BLEClientCharacteristic(BLEUuid(0x0002));
 
-bool debug = false;
+bool debug = true;
 uint8_t dsd6_mac[ 6 ] = { 0xF6, 0x7B, 0xFA, 0xBD, 0x3A, 0xF1 };
 bool connecting = true;
 uint8_t counter = 0;
@@ -237,20 +237,24 @@ void loop()
   nval = 0;
   for (uint16_t& val : balance) val = 0;
   for (const measure_t& val : top) {
-    msg.data[nval++] = val; // add top values to payload
-    if ( msg.data[nval - 1].value > WHITE_NOISE ) {
-      if ( msg.data[nval - 1].offset < 428 ) { // sum rear values to balance
-        balance[ 0 ] += msg.data[nval - 1].value;
-        if ( (UINT_LEAST16_MAX - balance[ 0 ]) < 0 ) balance[ 0 ] = UINT_LEAST16_MAX;
+    msg.data[nval] = val; // add top values to payload
+    if ( msg.data[nval].value > WHITE_NOISE ) {
+      if ( msg.data[nval].offset < 428 ) { // sum rear values to balance
+        if (UINT16_MAX - balance[0] >= msg.data[nval].value)
+          balance[ 0 ] += msg.data[nval].value;
       } else {                                // sum front values to balance
-        balance[ 1 ] += msg.data[nval - 1].value;
-        if ( (UINT_LEAST16_MAX - balance[ 1 ]) < 0 ) balance[ 1 ] = UINT_LEAST16_MAX;
+        if (UINT16_MAX - balance[1] >= msg.data[nval].value)
+          balance[ 1 ] += msg.data[nval].value;
       }
     }
+    nval++;
   }
-
+  Serial.print(balance[0]);
+  Serial.print('\t');
+  Serial.println(balance[1]);
   counter = ( counter +  1 ) % 16;
-
+ 
+ /* 
   if ( (balance[0] == UINT_LEAST16_MAX) || (balance[1] == UINT_LEAST16_MAX) && (counter == 3) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
@@ -276,4 +280,5 @@ void loop()
       send_ble_cmd(vib3);
     }
   }
+  */
 }
