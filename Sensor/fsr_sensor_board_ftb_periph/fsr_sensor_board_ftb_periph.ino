@@ -68,8 +68,8 @@ void setup()
   Bluefruit.setName("FEETBACK Prph");
 
   // Set the connect/disconnect callback handlers
-  Bluefruit.setConnectCallback(connect_callback);
-  Bluefruit.setDisconnectCallback(disconnect_callback);
+  Bluefruit.Periph.setConnectCallback(connect_callback);
+  Bluefruit.Periph.setDisconnectCallback(disconnect_callback);
 
   // Configure and Start the Device Information Service
   Serial.println("Configuring the Device Information Service");
@@ -189,8 +189,10 @@ void setup_feetback(void)
 void connect_callback(uint16_t conn_handle)
 {
   // Get the reference to current connection
+  BLEConnection* connection = Bluefruit.Connection(conn_handle);
+
   char central_name[32] = { 0 };
-  Bluefruit.Gap.getPeerName(conn_handle, central_name, sizeof(central_name));
+  connection->getPeerName(central_name, sizeof(central_name));
 
   Serial.print("Connected to ");
   Serial.println(central_name);
