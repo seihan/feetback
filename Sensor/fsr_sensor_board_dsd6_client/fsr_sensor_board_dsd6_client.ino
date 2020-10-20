@@ -12,7 +12,7 @@
   any redistribution
 *********************************************************************/
 
-#define MAX_VALUES 50
+#define MAX_VALUES 25
 #define MEASURED_VALUES 956
 #define WHITE_NOISE 200
  
@@ -254,7 +254,7 @@ void loop()
   Serial.println(balance[1]);
   counter = ( counter +  1 ) % 16;
  
- /* 
+ 
   if ( (balance[0] == UINT_LEAST16_MAX) || (balance[1] == UINT_LEAST16_MAX) && (counter == 3) ) {
     if ( balance[0] > balance[1] ) {
       send_ble_cmd(vib1);
@@ -280,5 +280,5 @@ void loop()
       send_ble_cmd(vib3);
     }
   }
-  */
+
 }
