@@ -254,31 +254,44 @@ void loop()
   Serial.println(balance[1]);
   counter = ( counter +  1 ) % 16;
  
- 
-  if ( (balance[0] == UINT_LEAST16_MAX) || (balance[1] == UINT_LEAST16_MAX) && (counter == 3) ) {
-    if ( balance[0] > balance[1] ) {
-      send_ble_cmd(vib1);
-    } else {
-      send_ble_cmd(vib3);
-    }
-  } else if ( (balance[0] > 50000) || (balance[1] > 50000) && (counter == 7) ) {
-    if ( balance[0] > balance[1] ) {
-      send_ble_cmd(vib1);
-    } else {
-      send_ble_cmd(vib3);
-    }
-  } else if ( (balance[0] > 30000) || (balance[1] > 30000) && (counter == 11) ) {
-    if ( balance[0] > balance[1] ) {
-      send_ble_cmd(vib1);
-    } else {
-      send_ble_cmd(vib3);
-    }
-  } else if ( (balance[0] > 5000) || (balance[1] > 5000) && (counter == 15) ) {
-    if ( balance[0] > balance[1] ) {
-      send_ble_cmd(vib1);
-    } else {
-      send_ble_cmd(vib3);
-    }
+  switch (counter) {
+    case 3 : 
+        if ( (balance[0] == UINT_LEAST16_MAX) || (balance[1] == UINT_LEAST16_MAX) ) {
+          if ( balance[0] > balance[1] ) {
+            send_ble_cmd(vib1);
+          } else {
+            send_ble_cmd(vib3);
+          }
+        }
+      break;
+    case 7 : 
+      if ( (balance[0] > 50000) || (balance[1] > 50000) ) {
+        if ( balance[0] > balance[1] ) {
+          send_ble_cmd(vib1);
+        } else {
+          send_ble_cmd(vib3);
+        }
+      }
+      break;
+    case 11 :
+      if ( (balance[0] > 30000) || (balance[1] > 30000) ) {
+        if ( balance[0] > balance[1] ) {
+          send_ble_cmd(vib1);
+        } else {
+          send_ble_cmd(vib3);
+        }
+      }
+      break;
+    case 15 :
+      if ( (balance[0] > 5000) || (balance[1] > 5000) ) {
+        if ( balance[0] > balance[1] ) {
+          send_ble_cmd(vib1);
+        } else {
+          send_ble_cmd(vib3);
+        }
+      }
+      break;
+     default :
+      break;
   }
-
 }
