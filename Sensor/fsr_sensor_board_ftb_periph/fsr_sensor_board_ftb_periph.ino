@@ -11,12 +11,11 @@ BLECharacteristic ftb_bala = BLECharacteristic(BLEUuid(feetback_char_bala_uuid))
 BLECharacteristic ftb_meta = BLECharacteristic(BLEUuid(feetback_char_meta_uuid));
 
 BLEDis bledis;    // DIS (Device Information Service) helper class instance
-//BLEBas blebas;    // BAS (Battery Service) helper class instance
 
 #include <SPI.h>
 
 //#define HWFC  true
-#define MAX_VALUES 50
+#define MAX_VALUES 10
 #define MEASURED_VALUES 956
 #define WHITE_NOISE 100
 
@@ -41,14 +40,6 @@ struct smaller_measurement {
 toplist<MAX_VALUES, measure_t, smaller_measurement> top;
 
 SoftwareTimer countTimer;
-
-// Advanced function prototypes
-void startAdv(void);
-void setup_feetback(void);
-void connect_callback(uint16_t conn_handle);
-void disconnect_callback(uint16_t conn_handle, uint8_t reason);
-void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_value);
-
 
 void setup()
 {
@@ -212,7 +203,7 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
   Serial.println("Advertising!");
 }
 
-void cccd_callback(BLECharacteristic& chr, uint16_t cccd_value)
+void cccd_callback(uint16_t conn_hdl, BLECharacteristic* chr, uint16_t cccd_value)
 {
   // Display the raw request packet
   Serial.print("CCCD Updated: ");
@@ -222,8 +213,8 @@ void cccd_callback(BLECharacteristic& chr, uint16_t cccd_value)
 
   // Check the characteristic this CCCD update is associated with in case
   // this handler is used for multiple CCCD records.
-  if (chr.uuid == ftb_data.uuid) {
-    if (chr.notifyEnabled()) {
+  if (chr->uuid == ftb_data.uuid) {
+    if (chr->notifyEnabled()) {
       Serial.println("Feetback Measurement 'Notify' enabled");
     } else {
       Serial.println("Feetback Measurement 'Notify' disabled");
@@ -232,8 +223,8 @@ void cccd_callback(BLECharacteristic& chr, uint16_t cccd_value)
 
   // Check the characteristic this CCCD update is associated with in case
   // this handler is used for multiple CCCD records.
-  if (chr.uuid == ftb_bala.uuid) {
-    if (chr.notifyEnabled()) {
+  if (chr->uuid == ftb_bala.uuid) {
+    if (chr->notifyEnabled()) {
       Serial.println("Feetback Balance 'Notify' enabled");
     } else {
       Serial.println("Feetback Balance 'Notify' disabled");
