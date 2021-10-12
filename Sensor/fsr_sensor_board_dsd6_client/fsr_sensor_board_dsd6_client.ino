@@ -12,7 +12,7 @@
   any redistribution
 *********************************************************************/
 
-#define MAX_VALUES 25
+#define MAX_VALUES 10
 #define MEASURED_VALUES 956
 #define WHITE_NOISE 200
  
@@ -30,7 +30,7 @@ BLEClientCharacteristic d6_notif = BLEClientCharacteristic(BLEUuid(0x0002));
 
 bool debug = true;
 uint8_t dsd6_mac[ 6 ] = { 0xF6, 0x7B, 0xFA, 0xBD, 0x3A, 0xF1 };
-bool connecting = true;
+bool connecting = false;
 uint8_t counter = 0;
 const String vib = "AT+MOTOR=1\n";  // start vibration
 const String vib1 = "AT+MOTOR=11\n";  // 50ms vibration
@@ -129,7 +129,8 @@ void scan_callback(ble_gap_evt_adv_report_t* report)
   if ( debug ) Serial.print("\n");
 
   for (int i = 0; i < 6; i++) {
-    if (report->peer_addr.addr[i] != dsd6_mac[i]) connecting = false;
+    if (report->peer_addr.addr[i] == dsd6_mac[i]) connecting = true;
+    else connecting = false;
   }
   if ( connecting ) {
     if ( debug ) Serial.println("Connecting to DS-D6 device...");
@@ -249,9 +250,9 @@ void loop()
     }
     nval++;
   }
-  Serial.print(balance[0]);
-  Serial.print('\t');
-  Serial.println(balance[1]);
+  //Serial.print(balance[0]);
+  //Serial.print('\t');
+  //Serial.println(balance[1]);
   counter = ( counter +  1 ) % 16;
  
   switch (counter) {
@@ -283,7 +284,7 @@ void loop()
       }
       break;
     case 15 :
-      if ( (balance[0] > 5000) || (balance[1] > 5000) ) {
+      if ( (balance[0] > 15000) || (balance[1] > 15000) ) {
         if ( balance[0] > balance[1] ) {
           send_ble_cmd(vib1);
         } else {
